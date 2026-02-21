@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Players</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+        h1 { text-align: center; margin-bottom: 20px; }
+        .add-player { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; border-radius: 8px; border: none; background: #252542; color: #fff; font-size: 16px; }
+        button { padding: 12px 20px; border-radius: 8px; border: none; background: #e94560; color: #fff; font-size: 16px; font-weight: 600; }
+        .player-list { display: flex; flex-direction: column; gap: 10px; }
+        .player-card { background: #252542; padding: 16px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .player-name { font-size: 18px; font-weight: 600; }
+        .empty { text-align: center; color: #888; margin-top: 40px; }
+    </style>
+</head>
+<body>
+    <h1>🃏 Players</h1>
+    <div class="add-player">
+        <input type="text" id="new-player" placeholder="Player name">
+        <button onclick="addPlayer()">Add</button>
+    </div>
+    <div class="player-list" id="player-list"></div>
+    <script>
+        let players = [];
+        
+        async function loadPlayers() {
+            const res = await fetch('/api/players');
+            players = await res.json();
+            render();
+        }
+        
+        function render() {
+            const list = document.getElementById('player-list');
+            if (players.length === 0) {
+                list.innerHTML = '<p class="empty">No players yet. Add one above!</p>';
+                return;
+            }
+            list.innerHTML = players.map(p => `
+                <div class="player-card">
+                    <span class="player-name">${p.name}</span>
+                </div>
+            `).join('');
+        }
+        
+        async function addPlayer() {
+            const input = document.getElementById('new-player');
+            const name = input.value.trim();
+            if (!name) return;
+            
+            await fetch('/api/players', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name})
+            });
+            
+            input.value = '';
+            loadPlayers();
+        }
+        
+        document.getElementById('new-player').addEventListener('keypress', e => {
+            if (e.key === 'Enter') addPlayer();
+        });
+        
+        loadPlayers();
+    </script>
+</body>
+</html>
