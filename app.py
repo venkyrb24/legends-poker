@@ -11,6 +11,17 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS players (id INTEGER PRIMARY KEY, name TEXT UNIQUE)''')
     c.execute('''CREATE TABLE IF NOT EXISTS games (id INTEGER PRIMARY KEY, date TEXT, note TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS buyins (id INTEGER PRIMARY KEY, game_id INTEGER, player_id INTEGER, buyins INTEGER DEFAULT 0, chips_returned INTEGER DEFAULT 0, cash_return INTEGER DEFAULT 0)''')
+    
+    # Add default players if none exist
+    c.execute('SELECT COUNT(*) FROM players')
+    if c.fetchone()[0] == 0:
+        default_players = ['Venkat', 'Amar', 'Anand', 'Malik', 'Venku', 'Ramana', 'Sunil', 'Teja', 'Suveer', 'Anil', 'Badri', 'Tarak', 'Chandra', 'Harish B', 'Giri']
+        for name in default_players:
+            try:
+                c.execute('INSERT INTO players (name) VALUES (?)', (name,))
+            except:
+                pass
+    
     conn.commit()
     conn.close()
 
