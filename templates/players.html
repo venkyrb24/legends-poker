@@ -1,72 +1,206 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Players</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
-        h1 { text-align: center; margin-bottom: 20px; }
-        .add-player { display: flex; gap: 10px; margin-bottom: 20px; }
-        input { flex: 1; padding: 12px; border-radius: 8px; border: none; background: #252542; color: #fff; font-size: 16px; }
-        button { padding: 12px 20px; border-radius: 8px; border: none; background: #e94560; color: #fff; font-size: 16px; font-weight: 600; }
-        .player-list { display: flex; flex-direction: column; gap: 10px; }
-        .player-card { background: #252542; padding: 16px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .player-name { font-size: 18px; font-weight: 600; }
-        .empty { text-align: center; color: #888; margin-top: 40px; }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Legends Poker · Players</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #050814;
+      --bg-elevated: #101628;
+      --accent: #1dd1a1;
+      --danger: #ff6b6b;
+      --text: #f5f7ff;
+      --text-muted: #8c96b8;
+      --border-subtle: #262c3f;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --font-main: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-main);
+      background: radial-gradient(circle at top, #1b2342 0, #050814 55%);
+      color: var(--text);
+    }
+
+    .app-shell {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px 12px 40px;
+    }
+
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(120deg, #151c33, #11182b);
+    }
+
+    .app-title-line {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .back-link {
+      font-size: 13px;
+      color: var(--accent);
+      cursor: pointer;
+    }
+
+    .section-header {
+      margin: 18px 4px 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+    }
+
+    .player-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      border-radius: var(--radius-md);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      font-size: 13px;
+    }
+
+    .player-name {
+      font-weight: 500;
+    }
+
+    .player-delete {
+      font-size: 12px;
+      color: var(--danger);
+      cursor: pointer;
+    }
+
+    .add-form {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .add-input {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      background: #050814;
+      color: var(--text);
+    }
+
+    .add-btn {
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--accent);
+      color: #02120c;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .error {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--danger);
+    }
+  </style>
 </head>
 <body>
-    <h1>🃏 Players</h1>
-    <div class="add-player">
-        <input type="text" id="new-player" placeholder="Player name">
-        <button onclick="addPlayer()">Add</button>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-title-line">Players</div>
+      <div class="back-link" onclick="goBack()">← Back to Game</div>
+    </header>
+
+    <div class="section-header">Current players</div>
+    <div id="players-list"></div>
+
+    <div class="section-header">Add player</div>
+    <div class="add-form">
+      <input
+        id="player-name-input"
+        class="add-input"
+        type="text"
+        placeholder="Player name"
+      />
+      <button class="add-btn" onclick="addPlayer()">Add</button>
     </div>
-    <div class="player-list" id="player-list"></div>
-    <script>
-        let players = [];
-        
-        async function loadPlayers() {
-            const res = await fetch('/api/players');
-            players = await res.json();
-            render();
-        }
-        
-        function render() {
-            const list = document.getElementById('player-list');
-            if (players.length === 0) {
-                list.innerHTML = '<p class="empty">No players yet. Add one above!</p>';
-                return;
-            }
-            list.innerHTML = players.map(p => `
-                <div class="player-card">
-                    <span class="player-name">${p.name}</span>
-                </div>
-            `).join('');
-        }
-        
-        async function addPlayer() {
-            const input = document.getElementById('new-player');
-            const name = input.value.trim();
-            if (!name) return;
-            
-            await fetch('/api/players', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name})
-            });
-            
-            input.value = '';
-            loadPlayers();
-        }
-        
-        document.getElementById('new-player').addEventListener('keypress', e => {
-            if (e.key === 'Enter') addPlayer();
-        });
-        
+    <div id="error" class="error"></div>
+  </div>
+
+  <script>
+    async function loadPlayers() {
+      const res = await fetch("/api/players");
+      const players = await res.json();
+      const list = document.getElementById("players-list");
+      list.innerHTML = "";
+
+      players.forEach((p) => {
+        const row = document.createElement("div");
+        row.className = "player-row";
+
+        const name = document.createElement("div");
+        name.className = "player-name";
+        name.textContent = p.name;
+
+        const del = document.createElement("div");
+        del.className = "player-delete";
+        del.textContent = "Delete";
+        del.onclick = () => deletePlayer(p.id);
+
+        row.appendChild(name);
+        row.appendChild(del);
+
+        list.appendChild(row);
+      });
+    }
+
+    async function addPlayer() {
+      const input = document.getElementById("player-name-input");
+      const err = document.getElementById("error");
+      const name = input.value.trim();
+      if (!name) {
+        err.textContent = "Name required.";
+        return;
+      }
+      err.textContent = "";
+      const res = await fetch("/api/players", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        err.textContent = data.error || "Error adding player.";
+      } else {
+        input.value = "";
         loadPlayers();
-    </script>
+      }
+    }
+
+    async function deletePlayer(id) {
+      if (!confirm("Delete this player and their history?")) return;
+      await fetch(`/api/players/${id}`, { method: "DELETE" });
+      loadPlayers();
+    }
+
+    function goBack() {
+      window.location.href = "/";
+    }
+
+    loadPlayers();
+  </script>
 </body>
 </html>

@@ -93,6 +93,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/players")
+def players_page():
+    return render_template("players.html")
+
+
 # ---------- Routes: Players ----------
 
 @app.route("/api/players", methods=["GET", "POST"])
