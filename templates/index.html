@@ -316,6 +316,17 @@
             <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 600)">+3</button>
             <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -200)">-1</button>
           </div>
+          <div class="add-form" style="margin-top:4px;">
+            <input type="number"
+                   min="0"
+                   id="pots-${p.buyin_id}"
+                   class="add-input"
+                   placeholder="Pots (#)"
+                   onchange="savePots(${p.buyin_id})">
+            <button class="btn-secondary" onclick="savePots(${p.buyin_id})">
+              Set pots
+            </button>
+          </div>
         </div>
 
         <div>
@@ -404,21 +415,33 @@
 
         let html = '<div class="settlement-card">';
 
-        // Per-player summary with correct net
-        data.results.forEach(r => {
-          const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
-          const sign = r.net_cash > 0 ? '+' : '';
+        // Per-player summary: show only non-zero nets
+        data.results
+          .filter(r => r.net_cash !== 0)
+          .forEach(r => {
+            const cls = r.net_cash > 0 ? 'net-win' : 'net-lose';
+            const sign = r.net_cash > 0 ? '+' : '';
+            html += `
+        <div class="result-row">
+          <div class="result-left">
+            ${r.name}: ${r.buyins} buy-ins, ${r.chips_returned || 0} back
+          </div>
+          <div class="result-right ${cls}">
+            ${sign}$${r.net_cash}
+          </div>
+        </div>
+      `;
+          });
+
+        // If everyone is exactly even
+        if (!data.results.some(r => r.net_cash !== 0)) {
           html += `
       <div class="result-row">
-        <div class="result-left">
-          ${r.name}: ${r.buyins} buy-ins, ${r.chips_returned || 0} back
-        </div>
-        <div class="result-right ${cls}">
-          ${sign}$${r.net_cash}
-        </div>
+        <div class="result-left">All players are even.</div>
+        <div class="result-right net-even">$0</div>
       </div>
     `;
-        });
+        }
 
         // Who owes whom
         html += '<div class="settlement-list">';
@@ -433,7 +456,6 @@
 
         document.getElementById('settlements').innerHTML = html;
       }
-
 
       async function loadHistory() {
         const games = await fetch('/api/games').then(r => r.json());
@@ -521,6 +543,19 @@
 
       async function saveChipsReturned(buyinId) {
         const chips = parseInt(document.getElementById(`chips-${buyinId}`).value || '0', 10);
+        await fetch('/api/buyins', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: buyinId, field: 'chips_returned', value: chips })
+        });
+        await loadExistingGame();
+      }
+
+      async function savePots(buyinId) {
+        const potsInput = document.getElementById(`pots-${buyinId}`);
+        const pots = parseInt(potsInput.value || '0', 10);
+        const chips = Math.max(0, pots * 200); // 1 pot = 200 chips
+        // reuse saveChipsReturned logic
         await fetch('/api/buyins', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
