@@ -206,77 +206,81 @@
         const badgeClass = net > 0 ? 'win' : net < 0 ? 'lose' : 'even';
 
         return `
-          <div class="player-row">
-            <div>
-              <div class="player-name">${p.name}</div>
-              <div class="player-meta">
-                <div class="player-meta-line">
-                  <span>Buy-ins</span><span>${p.buyins}</span>
-                </div>
-                <div class="player-meta-line">
-                  <span>Chips back</span><span>${chipsReturned}</span>
-                </div>
-              </div>
+      <div class="player-row">
+        <div>
+          <div class="player-name">${p.name}</div>
+          <div class="player-meta">
+            <div class="player-meta-line">
+              <span>Buy-ins</span><span>${p.buyins}</span>
             </div>
-            <div class="player-right">
-              <div class="net-badge ${badgeClass}">
-                ${net > 0 ? '+' : ''}${Math.round(net)}
-              </div>
-              <div class="pot-buttons">
-                <button class="btn-chip blue" onclick="quickAddBuyin(${p.buyin_id}, 1)">+1</button>
-                <button class="btn-chip blue" onclick="quickAddBuyin(${p.buyin_id}, 2)">+2</button>
-                <button class="btn-chip blue" onclick="quickAddBuyin(${p.buyin_id}, 3)">+3</button>
-                <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -1)">-1</button>
-                <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -2)">-2</button>
-                <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -3)">-3</button>
-              </div>
-              <button class="btn-secondary"
-                      style="margin-top:4px;font-size:11px;padding:4px 8px;"
-                      onclick="editPlayer(${p.buyin_id})">
-                Edit
-              </button>
+            <div class="player-meta-line">
+              <span>Chips back</span><span>${chipsReturned}</span>
+            </div>
+            <div class="player-meta-line">
+              <span>Returned</span>
+              <span>${chipsReturned} chips ($${(chipsReturned * 0.20 + cashReturn).toFixed(0)})</span>
             </div>
           </div>
-          <div class="edit-panel" id="edit-${p.buyin_id}" style="display:none;margin-bottom:8px;">
-            <div style="margin-bottom:10px;">
-              <div class="section-header" style="margin:4px 0;">Chips back</div>
-              <div class="add-form">
-                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -50)">-50</button>
-                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -10)">-10</button>
-                <input type="number" id="chips-${p.buyin_id}" class="add-input"
-                       value="${chipsReturned}" onchange="saveChipsReturned(${p.buyin_id})">
-                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 10)">+10</button>
-                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 50)">+50</button>
-              </div>
-              <button class="btn-primary" style="margin-top:4px;"
-                      onclick="saveChipsReturned(${p.buyin_id})">
-                Save chips
-              </button>
-            </div>
-
-            <div style="margin-bottom:10px;">
-              <div class="section-header" style="margin:4px 0;">Return pots (200 chips)</div>
-              <div class="add-form">
-                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 200)">+1</button>
-                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 400)">+2</button>
-                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 600)">+3</button>
-                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -200)">-1</button>
-              </div>
-            </div>
-
-            <div>
-              <div class="section-header" style="margin:4px 0;">Cash back</div>
-              <div class="add-form">
-                <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, -20)">-20</button>
-                <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, -10)">-10</button>
-                <input type="number" id="cash-${p.buyin_id}" class="add-input"
-                       value="${cashReturn}" onchange="saveCash(${p.buyin_id})">
-                <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, 10)">+10</button>
-                <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, 20)">+20</button>
-              </div>
-            </div>
+        </div>
+        <div class="player-right">
+          <div class="net-badge ${badgeClass}">
+            ${net > 0 ? '+' : ''}$${Math.round(net)}
           </div>
-        `;
+          <div class="pot-buttons">
+            <button class="btn-chip blue" onclick="quickAddBuyin(${p.buyin_id}, 1)">+1</button>
+            <button class="btn-chip blue" onclick="quickAddBuyin(${p.buyin_id}, 2)">+2</button>
+            <button class="btn-chip blue" onclick="quickAddBuyin(${p.buyin_id}, 3)">+3</button>
+            <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -1)">-1</button>
+            <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -2)">-2</button>
+            <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -3)">-3</button>
+          </div>
+          <button class="btn-secondary"
+                  style="margin-top:4px;font-size:11px;padding:4px 8px;"
+                  onclick="editPlayer(${p.buyin_id})">
+            Edit
+          </button>
+        </div>
+      </div>
+      <div class="edit-panel" id="edit-${p.buyin_id}" style="display:none;margin-bottom:8px;">
+        <div style="margin-bottom:10px;">
+          <div class="section-header" style="margin:4px 0;">Chips back</div>
+          <div class="add-form">
+            <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -50)">-50</button>
+            <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -10)">-10</button>
+            <input type="number" id="chips-${p.buyin_id}" class="add-input"
+                   value="${chipsReturned}" onchange="saveChipsReturned(${p.buyin_id})">
+            <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 10)">+10</button>
+            <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 50)">+50</button>
+          </div>
+          <button class="btn-primary" style="margin-top:4px;"
+                  onclick="saveChipsReturned(${p.buyin_id})">
+            Save chips
+          </button>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <div class="section-header" style="margin:4px 0;">Return pots (200 chips)</div>
+          <div class="add-form">
+            <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 200)">+1</button>
+            <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 400)">+2</button>
+            <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 600)">+3</button>
+            <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -200)">-1</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-header" style="margin:4px 0;">Cash back</div>
+          <div class="add-form">
+            <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, -20)">-20</button>
+            <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, -10)">-10</button>
+            <input type="number" id="cash-${p.buyin_id}" class="add-input"
+                   value="${cashReturn}" onchange="saveCash(${p.buyin_id})">
+            <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, 10)">+10</button>
+            <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, 20)">+20</button>
+          </div>
+        </div>
+      </div>
+    `;
       }).join('');
 
       const totalChips = totalBuyins * 200;
@@ -347,6 +351,8 @@
       const data = await res.json();
 
       let html = '<div class="settlement-card">';
+
+      // Per‑player summary
       data.results.forEach(r => {
         const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
         const sign = r.net_cash > 0 ? '+' : '';
@@ -361,6 +367,8 @@
       </div>
     `;
       });
+
+      // Settlements lines
       html += '<div class="settlement-list">';
       data.settlements.forEach(s => {
         html += `<div class="settlement-item">${s}</div>`;
