@@ -154,14 +154,16 @@
         
         async function loadPlayers() {
             const players = await fetch('/api/players').then(r => r.json());
-            document.getElementById('player-list').innerHTML = players.map(p => `
+            document.getElementById('player-list').innerHTML = players.length
+                ? players.map(p => `
                 <div class="card">
                     <div class="delete-row">
                         <span class="card-name">${p.name}</span>
                         <button class="btn btn-delete" onclick="deletePlayer(${p.id})">✕</button>
                     </div>
                 </div>
-            `).join('') || '<p class="empty">No players yet</p>';
+            `).join('')
+                : '<p class="empty">No players yet</p>';
         }
         
         async function deletePlayer(id) {
@@ -182,51 +184,52 @@
             loadPlayers();
         }
         
-        async function startGame() {
-            const res = await fetch('/api/game', { method: 'POST' });
-            const data = await res.json();
-            currentGameId = data.game_id;
-            loadGame();
-        }
-        
         async function loadGame() {
-            // Show player selection
+            // Default: show player selection
             document.getElementById('game-start').style.display = 'block';
             document.getElementById('game-play').style.display = 'none';
-            
+            document.getElementById('game-id').textContent = '';
+            document.getElementById('settlements').innerHTML = '';
+
             const players = await fetch('/api/players').then(r => r.json());
-            document.getElementById('player-select').innerHTML = players.map(p => `
+            document.getElementById('player-select').innerHTML = players.length
+                ? players.map(p => `
                 <div class="player-check">
                     <input type="checkbox" id="p-${p.id}" value="${p.id}">
                     <label for="p-${p.id}">${p.name}</label>
                 </div>
-            `).join('') || '<p class="empty">No players. Add players first!</p>';
+            `).join('')
+                : '<p class="empty">No players. Add players first!</p>';
             
-            // Check if there's an active game
+            // Try to restore an existing game
             const games = await fetch('/api/games').then(r => r.json());
-            if (games.length > 0 && currentGameId) {
-                // Load existing game
-                loadExistingGame();
+            if (games.length === 0) return;
+
+            if (!currentGameId) {
+                // Use most recent game by id
+                const latest = games[games.length - 1];
+                currentGameId = latest.id;
             }
+
+            await loadExistingGame();
         }
         
         async function loadExistingGame() {
+            if (!currentGameId) return;
             document.getElementById('game-start').style.display = 'none';
             document.getElementById('game-play').style.display = 'block';
             
-            // Get game info
             const gamesRes = await fetch('/api/games');
             const games = await gamesRes.json();
             const thisGame = games.find(g => g.id === currentGameId);
             document.getElementById('game-id').textContent = thisGame ? thisGame.date : 'Game #' + currentGameId;
             
-            const res = await fetch(`/api/calculate/${currentGameId}`);
-            const calcData = await res.json();
+            const resCalc = await fetch(`/api/calculate/${currentGameId}`);
+            const calcData = await resCalc.json();
             
             const gameRes = await fetch(`/api/game/${currentGameId}`);
             const data = await gameRes.json();
             
-            // Calculate totals
             let totalBuyins = 0;
             let totalReturns = 0;
             
@@ -235,7 +238,6 @@
                 const chipsReturned = p.chips_returned || 0;
                 const chipsHeld = totalChips - chipsReturned;
                 const cashReturn = p.cash_return || 0;
-                // Net = value of chips returned + cash returned - money paid for buy-ins
                 const net = (chipsReturned * 0.20) + cashReturn - (p.buyins * 40);
                 
                 totalBuyins += p.buyins;
@@ -312,9 +314,9 @@
                         </div>
                     </div>
                 </div>
-            `}).join('');
+            `;
+            }).join('');
             
-            // Update totals
             const totalPots = totalBuyins;
             const totalChips = totalPots * 200;
             const returnValue = totalReturns;
@@ -322,7 +324,6 @@
             
             document.getElementById('total-buyins').textContent = `${totalPots} pots (${totalChips} chips)`;
             
-            // Check if total chips returned > or < total chips
             const diff = returnChips - totalChips;
             if (diff > 0) {
                 document.getElementById('total-returns').innerHTML = `<span style="color:#dc2626">⚠️ ${returnChips} chips ($${Math.round(returnValue)}) - INFLATED +${diff}</span>`;
@@ -334,7 +335,6 @@
         }
         
         async function createGame() {
-            // Get selected players
             const checkboxes = document.querySelectorAll('#player-select input:checked');
             const playerIds = Array.from(checkboxes).map(c => parseInt(c.value));
             
@@ -343,12 +343,10 @@
                 return;
             }
             
-            // Create game
             const res = await fetch('/api/game', { method: 'POST' });
             const data = await res.json();
             currentGameId = data.game_id;
             
-            // Add selected players to game with 1 buy-in (no chips returned yet)
             for (const playerId of playerIds) {
                 await fetch('/api/game/' + currentGameId + '/add_player', {
                     method: 'POST',
@@ -357,109 +355,77 @@
                 });
             }
             
-            loadExistingGame();
+            await loadExistingGame();
         }
         
         async function backToSelect() {
             currentGameId = null;
-            loadGame();
+            await loadGame();
         }
         
         function editPlayer(id) {
             document.querySelectorAll('.edit-panel').forEach(p => p.classList.remove('show'));
-            document.getElementById(`edit-${id}`).classList.toggle('show');
+            const panel = document.getElementById(`edit-${id}`);
+            if (panel) {
+                panel.classList.toggle('show');
+            }
         }
         
         async function addBuyin(buyinId, amount) {
-            // Add buy-in: +1 buyin (no chips returned yet)
             await fetch('/api/buyins', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ id: buyinId, buyins: amount, chips_returned: 0 })
             });
-            loadExistingGame();
+            await loadExistingGame();
         }
         
         async function quickAddBuyin(buyinId, amount) {
-            // Get current value first
             const res = await fetch(`/api/game/${currentGameId}`);
             const data = await res.json();
             const player = data.players.find(p => p.buyin_id === buyinId);
             const currentBuyins = player ? player.buyins : 0;
             const newValue = currentBuyins + amount;
-            
-            if (newValue < 0) return; // Can't go negative
+            if (newValue < 0) return;
             
             await fetch('/api/buyins', {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ id: buyinId, field: 'buyins', value: newValue })
             });
-            loadExistingGame();
-        }
-        
-        async function quickAddChips(buyinId, amount) {
-            // Get current value first, then set
-            const res = await fetch(`/api/game/${currentGameId}`);
-            const data = await res.json();
-            const player = data.players.find(p => p.buyin_id === buyinId);
-            const currentChips = player ? (player.chips_returned || 0) : 0;
-            const newValue = currentChips + amount;
-            
-            await fetch('/api/buyins', {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id: buyinId, field: 'chips_returned', value: Math.max(0, newValue) })
-            });
-            loadExistingGame();
+            await loadExistingGame();
         }
         
         async function updateChipsReturned(buyinId, delta) {
             const input = document.getElementById(`chips-${buyinId}`);
-            input.value = Math.max(0, parseInt(input.value) + delta);
-            saveChipsReturned(buyinId);
+            input.value = Math.max(0, parseInt(input.value || '0') + delta);
+            await saveChipsReturned(buyinId);
         }
         
         async function saveChipsReturned(buyinId) {
-            const chips = parseInt(document.getElementById(`chips-${buyinId}`).value);
+            const chips = parseInt(document.getElementById(`chips-${buyinId}`).value || '0');
             await fetch('/api/buyins', {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ id: buyinId, field: 'chips_returned', value: chips })
             });
-            loadExistingGame();
-        }
-        
-        async function updateChips(buyinId, delta) {
-            const input = document.getElementById(`chips-${buyinId}`);
-            input.value = Math.max(0, parseInt(input.value) + delta);
-            saveChips(buyinId);
-        }
-        
-        async function saveChips(buyinId) {
-            const chips = parseInt(document.getElementById(`chips-${buyinId}`).value);
-            await fetch('/api/buyins', {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id: buyinId, field: 'chips_returned', value: chips })
-            });
-            loadExistingGame();
+            await loadExistingGame();
         }
         
         async function updateCash(buyinId, delta) {
             const input = document.getElementById(`cash-${buyinId}`);
-            input.value = Math.max(0, parseInt(input.value) + delta);
-            saveCash(buyinId);
+            input.value = Math.max(0, parseInt(input.value || '0') + delta);
+            await saveCash(buyinId);
         }
         
         async function saveCash(buyinId) {
-            const cash = parseInt(document.getElementById(`cash-${buyinId}`).value) || 0;
+            const cash = parseInt(document.getElementById(`cash-${buyinId}`).value || '0');
             await fetch('/api/buyins', {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ id: buyinId, field: 'cash_return', value: cash })
             });
-            loadExistingGame();
+            await loadExistingGame();
         }
         
         async function calculate() {
@@ -507,28 +473,29 @@
         async function deleteGame(id) {
             if (!confirm('Delete this game?')) return;
             await fetch('/api/game/' + id, { method: 'DELETE' });
-            loadHistory();
+            if (currentGameId === id) currentGameId = null;
+            await loadHistory();
         }
         
         async function showAddPlayerModal() {
+            if (!currentGameId) return;
             const modal = document.getElementById('add-player-modal');
             modal.style.display = 'flex';
             
-            // Get all players and current game players
             const allPlayers = await fetch('/api/players').then(r => r.json());
             const gameRes = await fetch(`/api/game/${currentGameId}`);
             const gameData = await gameRes.json();
             const currentPlayerIds = gameData.players.map(p => p.player_id);
-            
-            // Filter out players already in game
             const availablePlayers = allPlayers.filter(p => !currentPlayerIds.includes(p.id));
             
-            document.getElementById('available-players').innerHTML = availablePlayers.map(p => `
+            document.getElementById('available-players').innerHTML = availablePlayers.length
+                ? availablePlayers.map(p => `
                 <div class="player-check" style="margin-bottom:10px;">
                     <input type="checkbox" id="add-p-${p.id}" value="${p.id}">
                     <label for="add-p-${p.id}">${p.name}</label>
                 </div>
-            `).join('') || '<p>No players available</p>';
+            `).join('')
+                : '<p>No players available</p>';
         }
         
         function closeAddPlayerModal() {
@@ -538,6 +505,10 @@
         async function addPlayersToGame() {
             const checkboxes = document.querySelectorAll('#available-players input:checked');
             const playerIds = Array.from(checkboxes).map(c => parseInt(c.value));
+            if (playerIds.length === 0) {
+                closeAddPlayerModal();
+                return;
+            }
             
             for (const playerId of playerIds) {
                 await fetch('/api/game/' + currentGameId + '/add_player', {
@@ -548,7 +519,7 @@
             }
             
             closeAddPlayerModal();
-            loadExistingGame();
+            await loadExistingGame();
         }
     </script>
 </body>
