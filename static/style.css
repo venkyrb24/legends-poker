@@ -393,6 +393,60 @@
     cursor: pointer;
   }
   
+  /* Modal Styles */
+  .modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .modal.active {
+    display: flex;
+  }
+  
+  .modal-content {
+    background: #16213e;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 360px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  
+  .modal-header {
+    margin: 16px 16px 8px;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 8px 16px;
+    margin-bottom: 8px;
+  }
+  
+  .modal-footer {
+    padding: 8px 16px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .modal-footer button {
+    width: 100%;
+  }
+  
+  .no-players-message {
+    margin-top: 4px;
+  }
+  
   /* Responsive */
   
   @media (max-width: 640px) {
@@ -413,4 +467,4 @@
       align-items: flex-start;
       gap: 6px;
     }
-  }  
+  }
