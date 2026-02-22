@@ -127,7 +127,7 @@
       const allPlayers = await fetch('/api/players').then(r => r.json());
       // Players already in this game
       const gameData = await fetch(`/api/game/${currentGameId}`).then(r => r.json());
-      const currentIds = gameData.players.map(p => p.player_id);
+      const currentIds = gameData.players.map(p => p.player_id || p.id).filter(Boolean);
       // Filter to only those not yet seated
       const available = allPlayers.filter(p => !currentIds.includes(p.id));
 
