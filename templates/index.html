@@ -86,172 +86,176 @@
       </div>
 
       <!-- Add Player Modal -->
-      <div id="add-player-modal"
-        style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;">
-        <div style="background:#16213e;padding:20px;border-radius:12px;width:90%;max-width:350px;">
-          <h3 style="margin-bottom:15px;">Add Player to Game</h3>
-          <div id="available-players"></div>
-          <button class="btn-primary" onclick="addPlayersToGame()" style="width:100%;margin-top:15px;">Add
-            Selected</button>
-          <button class="btn-secondary" onclick="closeAddPlayerModal()"
-            style="width:100%;margin-top:10px;">Cancel</button>
+      <div id="add-player-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1000;
+            align-items:center;justify-content:center;">
+        <div style="background:#16213e;border-radius:12px;width:90%;max-width:360px;
+              max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
+          <h3 style="margin:16px 16px 8px;">Add Player to Game</h3>
+
+          <!-- Scrollable list -->
+          <div id="available-players" style="flex:1;overflow-y:auto;padding:0 16px 8px 16px;margin-bottom:8px;">
+          </div>
+
+          <!-- Sticky buttons -->
+          <div style="padding:8px 16px 16px 16px;display:flex;flex-direction:column;gap:8px;">
+            <button class="btn-primary" onclick="addPlayersToGame()" style="width:100%;">Add Selected</button>
+            <button class="btn-secondary" onclick="closeAddPlayerModal()" style="width:100%;">Cancel</button>
+          </div>
         </div>
+      </div>
+
+      <!-- History Section -->
+      <div id="history" class="section">
+        <div class="back-link" onclick="showSection('home')">← Back</div>
+        <div class="section-header">Recent games</div>
+        <div id="history-list"></div>
       </div>
     </div>
 
-    <!-- History Section -->
-    <div id="history" class="section">
-      <div class="back-link" onclick="showSection('home')">← Back</div>
-      <div class="section-header">Recent games</div>
-      <div id="history-list"></div>
-    </div>
-  </div>
+    <script>
+      let currentGameId = null;
 
-  <script>
-    let currentGameId = null;
+      function showSection(id) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if (id === 'players') loadPlayers();
+        if (id === 'game') loadGame();
+        if (id === 'history') loadHistory();
+      }
 
-    function showSection(id) {
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-      if (id === 'players') loadPlayers();
-      if (id === 'game') loadGame();
-      if (id === 'history') loadHistory();
-    }
+      async function showAddPlayerModal() {
+        if (!currentGameId) return;
+        const modal = document.getElementById('add-player-modal');
+        modal.style.display = 'flex';
 
-    async function showAddPlayerModal() {
-      if (!currentGameId) return;
-      const modal = document.getElementById('add-player-modal');
-      modal.style.display = 'flex';
+        const allPlayers = await fetch('/api/players').then(r => r.json());
+        const gameData = await fetch(`/api/game/${currentGameId}`).then(r => r.json());
 
-      // All players in DB
-      const allPlayers = await fetch('/api/players').then(r => r.json());
-      // Players already in this game
-      const gameData = await fetch(`/api/game/${currentGameId}`).then(r => r.json());
-      const currentIds = gameData.players.map(p => p.player_id || p.id).filter(Boolean);
-      // Filter to only those not yet seated
-      const available = allPlayers.filter(p => !currentIds.includes(p.id));
+        // gameData.players comes from /api/game/<id>; make sure player_id is present in that query
+        const currentIds = gameData.players.map(p => p.player_id);
+        const available = allPlayers.filter(p => !currentIds.includes(p.id));
 
-      document.getElementById('available-players').innerHTML = available.length
-        ? available.map(p => `
+        document.getElementById('available-players').innerHTML = available.length
+          ? available.map(p => `
         <div class="player-row">
           <div class="player-name">
             <input type="checkbox" id="add-p-${p.id}" value="${p.id}"> ${p.name}
           </div>
         </div>
       `).join('')
-        : '<div class="section-header" style="margin-top:4px;">No players available</div>';
-    }
+          : '<div class="section-header" style="margin-top:4px;">No players available</div>';
+      }
 
-    function closeAddPlayerModal() {
-      document.getElementById('add-player-modal').style.display = 'none';
-    }
+      function closeAddPlayerModal() {
+        document.getElementById('add-player-modal').style.display = 'none';
+      }
 
-    async function addPlayersToGame() {
-      const checkboxes = document.querySelectorAll('#available-players input:checked');
-      const ids = Array.from(checkboxes).map(c => parseInt(c.value, 10));
-      if (!ids.length) {
+      async function addPlayersToGame() {
+        const checkboxes = document.querySelectorAll('#available-players input:checked');
+        const ids = Array.from(checkboxes).map(c => parseInt(c.value, 10));
+        if (!ids.length) {
+          closeAddPlayerModal();
+          return;
+        }
+        for (const id of ids) {
+          await fetch(`/api/game/${currentGameId}/add_player`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ player_id: id, buyins: 1, chips_returned: 0 })
+          });
+        }
         closeAddPlayerModal();
-        return;
+        await loadExistingGame();
       }
-      for (const id of ids) {
-        await fetch(`/api/game/${currentGameId}/add_player`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ player_id: id, buyins: 1, chips_returned: 0 })
-        });
-      }
-      closeAddPlayerModal();
-      await loadExistingGame();
-    }
 
-    async function loadPlayers() {
-      const players = await fetch('/api/players').then(r => r.json());
-      document.getElementById('player-list').innerHTML = players.length
-        ? players.map(p => `
+      async function loadPlayers() {
+        const players = await fetch('/api/players').then(r => r.json());
+        document.getElementById('player-list').innerHTML = players.length
+          ? players.map(p => `
           <div class="player-row">
             <div class="player-name">${p.name}</div>
             <div class="player-delete" onclick="deletePlayer(${p.id})">Delete</div>
           </div>
         `).join('')
-        : '<div class="section-header" style="margin-top:4px;">No players yet</div>';
-    }
+          : '<div class="section-header" style="margin-top:4px;">No players yet</div>';
+      }
 
-    async function deletePlayer(id) {
-      if (!confirm('Delete this player?')) return;
-      await fetch('/api/players/' + id, { method: 'DELETE' });
-      loadPlayers();
-    }
+      async function deletePlayer(id) {
+        if (!confirm('Delete this player?')) return;
+        await fetch('/api/players/' + id, { method: 'DELETE' });
+        loadPlayers();
+      }
 
-    async function addPlayer() {
-      const inp = document.getElementById('new-player');
-      const name = inp.value.trim();
-      if (!name) return;
-      await fetch('/api/players', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
-      });
-      inp.value = '';
-      loadPlayers();
-    }
+      async function addPlayer() {
+        const inp = document.getElementById('new-player');
+        const name = inp.value.trim();
+        if (!name) return;
+        await fetch('/api/players', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        inp.value = '';
+        loadPlayers();
+      }
 
-    async function loadGame() {
-      document.getElementById('game-start').style.display = 'block';
-      document.getElementById('game-play').style.display = 'none';
-      document.getElementById('settlements').innerHTML = '';
+      async function loadGame() {
+        document.getElementById('game-start').style.display = 'block';
+        document.getElementById('game-play').style.display = 'none';
+        document.getElementById('settlements').innerHTML = '';
 
-      const players = await fetch('/api/players').then(r => r.json());
-      document.getElementById('player-select').innerHTML = players.length
-        ? players.map(p => `
+        const players = await fetch('/api/players').then(r => r.json());
+        document.getElementById('player-select').innerHTML = players.length
+          ? players.map(p => `
           <div class="player-row">
             <div class="player-name">
               <input type="checkbox" id="p-${p.id}" value="${p.id}"> ${p.name}
             </div>
           </div>
         `).join('')
-        : '<div class="section-header" style="margin-top:4px;">No players. Add players first!</div>';
+          : '<div class="section-header" style="margin-top:4px;">No players. Add players first!</div>';
 
-      const games = await fetch('/api/games').then(r => r.json());
-      if (!games.length) {
-        document.getElementById('game-id').textContent = '—';
-        return;
+        const games = await fetch('/api/games').then(r => r.json());
+        if (!games.length) {
+          document.getElementById('game-id').textContent = '—';
+          return;
+        }
+        if (!currentGameId) {
+          const latest = games[0]; // /api/games is ORDER BY id DESC
+          currentGameId = latest.id;
+        }
+        await loadExistingGame();
       }
-      if (!currentGameId) {
-        const latest = games[0]; // /api/games is ORDER BY id DESC
-        currentGameId = latest.id;
-      }
-      await loadExistingGame();
-    }
 
-    async function loadExistingGame() {
-      if (!currentGameId) return;
+      async function loadExistingGame() {
+        if (!currentGameId) return;
 
-      document.getElementById('game-start').style.display = 'none';
-      document.getElementById('game-play').style.display = 'block';
+        document.getElementById('game-start').style.display = 'none';
+        document.getElementById('game-play').style.display = 'block';
 
-      const games = await fetch('/api/games').then(r => r.json());
-      const thisGame = games.find(g => g.id === currentGameId);
-      document.getElementById('game-id').textContent =
-        thisGame ? thisGame.date : 'Game #' + currentGameId;
+        const games = await fetch('/api/games').then(r => r.json());
+        const thisGame = games.find(g => g.id === currentGameId);
+        document.getElementById('game-id').textContent =
+          thisGame ? thisGame.date : 'Game #' + currentGameId;
 
-      const gameRes = await fetch(`/api/game/${currentGameId}`);
-      const data = await gameRes.json();
+        const gameRes = await fetch(`/api/game/${currentGameId}`);
+        const data = await gameRes.json();
 
-      let totalBuyins = 0;
-      let totalReturns = 0;
+        let totalBuyins = 0;
+        let totalReturns = 0;
 
-      document.getElementById('game-players').innerHTML = data.players.map(p => {
-        const totalChips = p.buyins * 200;
-        const chipsReturned = p.chips_returned || 0;
-        const cashReturn = p.cash_return || 0;
-        const net = (chipsReturned * 0.20) + cashReturn - (p.buyins * 40);
+        document.getElementById('game-players').innerHTML = data.players.map(p => {
+          const totalChips = p.buyins * 200;
+          const chipsReturned = p.chips_returned || 0;
+          const cashReturn = p.cash_return || 0;
+          const net = (chipsReturned * 0.20) + cashReturn - (p.buyins * 40);
 
-        totalBuyins += p.buyins;
-        totalReturns += (chipsReturned * 0.20) + cashReturn;
+          totalBuyins += p.buyins;
+          totalReturns += (chipsReturned * 0.20) + cashReturn;
 
-        const badgeClass = net > 0 ? 'win' : net < 0 ? 'lose' : 'even';
+          const badgeClass = net > 0 ? 'win' : net < 0 ? 'lose' : 'even';
 
-        return `
+          return `
       <div class="player-row">
         <div>
           <div class="player-name">${p.name}</div>
@@ -327,82 +331,82 @@
         </div>
       </div>
     `;
-      }).join('');
+        }).join('');
 
-      const totalChips = totalBuyins * 200;
-      const returnChips = Math.floor(totalReturns / 0.20);
-      document.getElementById('total-buyins').textContent =
-        `${totalBuyins} pots (${totalChips} chips)`;
+        const totalChips = totalBuyins * 200;
+        const returnChips = Math.floor(totalReturns / 0.20);
+        document.getElementById('total-buyins').textContent =
+          `${totalBuyins} pots (${totalChips} chips)`;
 
-      const diff = returnChips - totalChips;
-      if (diff > 0) {
-        document.getElementById('total-returns').innerHTML =
-          `⚠️ ${returnChips} chips ($${Math.round(totalReturns)}) - INFLATED +${diff}`;
-      } else if (diff < 0) {
-        document.getElementById('total-returns').innerHTML =
-          `⚠️ ${returnChips} chips ($${Math.round(totalReturns)}) - SHORT ${Math.abs(diff)}`;
-      } else {
-        document.getElementById('total-returns').textContent =
-          `${returnChips} chips ($${Math.round(totalReturns)}) - MATCH!`;
-      }
-    }
-
-    async function createGame() {
-      const checkboxes = document.querySelectorAll('#player-select input:checked');
-      const playerIds = Array.from(checkboxes).map(c => parseInt(c.value, 10));
-
-      if (!playerIds.length) {
-        alert('Select at least one player!');
-        return;
+        const diff = returnChips - totalChips;
+        if (diff > 0) {
+          document.getElementById('total-returns').innerHTML =
+            `⚠️ ${returnChips} chips ($${Math.round(totalReturns)}) - INFLATED +${diff}`;
+        } else if (diff < 0) {
+          document.getElementById('total-returns').innerHTML =
+            `⚠️ ${returnChips} chips ($${Math.round(totalReturns)}) - SHORT ${Math.abs(diff)}`;
+        } else {
+          document.getElementById('total-returns').textContent =
+            `${returnChips} chips ($${Math.round(totalReturns)}) - MATCH!`;
+        }
       }
 
-      const res = await fetch('/api/game', { method: 'POST' });
-      const data = await res.json();
-      currentGameId = data.game_id;
+      async function createGame() {
+        const checkboxes = document.querySelectorAll('#player-select input:checked');
+        const playerIds = Array.from(checkboxes).map(c => parseInt(c.value, 10));
 
-      for (const playerId of playerIds) {
-        await fetch(`/api/game/${currentGameId}/add_player`, {
-          method: 'POST',
+        if (!playerIds.length) {
+          alert('Select at least one player!');
+          return;
+        }
+
+        const res = await fetch('/api/game', { method: 'POST' });
+        const data = await res.json();
+        currentGameId = data.game_id;
+
+        for (const playerId of playerIds) {
+          await fetch(`/api/game/${currentGameId}/add_player`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ player_id: playerId, buyins: 1, chips_returned: 0 })
+          });
+        }
+
+        await loadExistingGame();
+      }
+
+      async function backToSelect() {
+        currentGameId = null;
+        await loadGame();
+      }
+
+      async function quickAddBuyin(buyinId, amount) {
+        const res = await fetch(`/api/game/${currentGameId}`);
+        const data = await res.json();
+        const player = data.players.find(p => p.buyin_id === buyinId);
+        const currentBuyins = player ? player.buyins : 0;
+        const newValue = currentBuyins + amount;
+        if (newValue < 0) return;
+
+        await fetch('/api/buyins', {
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ player_id: playerId, buyins: 1, chips_returned: 0 })
+          body: JSON.stringify({ id: buyinId, field: 'buyins', value: newValue })
         });
+        await loadExistingGame();
       }
 
-      await loadExistingGame();
-    }
+      async function calculate() {
+        const res = await fetch(`/api/calculate/${currentGameId}`);
+        const data = await res.json();
 
-    async function backToSelect() {
-      currentGameId = null;
-      await loadGame();
-    }
+        let html = '<div class="settlement-card">';
 
-    async function quickAddBuyin(buyinId, amount) {
-      const res = await fetch(`/api/game/${currentGameId}`);
-      const data = await res.json();
-      const player = data.players.find(p => p.buyin_id === buyinId);
-      const currentBuyins = player ? player.buyins : 0;
-      const newValue = currentBuyins + amount;
-      if (newValue < 0) return;
-
-      await fetch('/api/buyins', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: buyinId, field: 'buyins', value: newValue })
-      });
-      await loadExistingGame();
-    }
-
-    async function calculate() {
-      const res = await fetch(`/api/calculate/${currentGameId}`);
-      const data = await res.json();
-
-      let html = '<div class="settlement-card">';
-
-      // Per-player summary
-      data.results.forEach(r => {
-        const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
-        const sign = r.net_cash > 0 ? '+' : '';
-        html += `
+        // Per-player summary
+        data.results.forEach(r => {
+          const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
+          const sign = r.net_cash > 0 ? '+' : '';
+          html += `
       <div class="result-row">
         <div class="result-left">
           ${r.name}: ${r.buyins} buy-ins, ${r.chips_returned || 0} back
@@ -412,34 +416,34 @@
         </div>
       </div>
     `;
-      });
-
-      // Who owes whom
-      html += '<div class="settlement-list">';
-      if (data.settlements && data.settlements.length) {
-        data.settlements.forEach(s => {
-          html += `<div class="settlement-item">${s}</div>`;
         });
-      } else {
-        html += '<div class="settlement-item">No settlements needed.</div>';
-      }
-      html += '</div></div>';
 
-      document.getElementById('settlements').innerHTML = html;
-    }
+        // Who owes whom
+        html += '<div class="settlement-list">';
+        if (data.settlements && data.settlements.length) {
+          data.settlements.forEach(s => {
+            html += `<div class="settlement-item">${s}</div>`;
+          });
+        } else {
+          html += '<div class="settlement-item">No settlements needed.</div>';
+        }
+        html += '</div></div>';
 
-    async function loadHistory() {
-      const games = await fetch('/api/games').then(r => r.json());
-      if (!games.length) {
-        document.getElementById('history-list').innerHTML =
-          '<div class="section-header" style="margin-top:4px;">No games yet</div>';
-        return;
+        document.getElementById('settlements').innerHTML = html;
       }
-      let html = '';
-      for (const game of games.slice(0, 10)) {
-        const res = await fetch(`/api/calculate/${game.id}`);
-        const data = await res.json();
-        html += `
+
+      async function loadHistory() {
+        const games = await fetch('/api/games').then(r => r.json());
+        if (!games.length) {
+          document.getElementById('history-list').innerHTML =
+            '<div class="section-header" style="margin-top:4px;">No games yet</div>';
+          return;
+        }
+        let html = '';
+        for (const game of games.slice(0, 10)) {
+          const res = await fetch(`/api/calculate/${game.id}`);
+          const data = await res.json();
+          html += `
           <div class="history-card">
             <div class="history-row">
               <span>${game.date}</span>
@@ -449,72 +453,72 @@
               </div>
             </div>
         `;
-        if (data.settlements.length) {
-          data.settlements.slice(0, 3).forEach(s => {
-            html += `<div class="settlement-item">${s}</div>`;
-          });
+          if (data.settlements.length) {
+            data.settlements.slice(0, 3).forEach(s => {
+              html += `<div class="settlement-item">${s}</div>`;
+            });
+          }
+          html += '</div>';
         }
-        html += '</div>';
+        document.getElementById('history-list').innerHTML = html;
       }
-      document.getElementById('history-list').innerHTML = html;
-    }
 
-    async function resumeGame(id) {
-      currentGameId = id;
-      showSection('game');
-    }
-
-    async function deleteGame(id) {
-      if (!confirm('Delete this game?')) return;
-      await fetch(`/api/game/${id}`, { method: 'DELETE' });
-      if (currentGameId === id) currentGameId = null;
-      await loadHistory();
-    }
-
-    function editPlayer(id) {
-      document.querySelectorAll('.edit-panel').forEach(p => { p.style.display = 'none'; });
-      const panel = document.getElementById(`edit-${id}`);
-      if (panel) {
-        panel.style.display = (panel.style.display === 'none' || !panel.style.display)
-          ? 'block'
-          : 'none';
+      async function resumeGame(id) {
+        currentGameId = id;
+        showSection('game');
       }
-    }
 
-    async function updateChipsReturned(buyinId, delta) {
-      const input = document.getElementById(`chips-${buyinId}`);
-      const current = parseInt(input.value || '0', 10);
-      input.value = Math.max(0, current + delta);
-      await saveChipsReturned(buyinId);
-    }
+      async function deleteGame(id) {
+        if (!confirm('Delete this game?')) return;
+        await fetch(`/api/game/${id}`, { method: 'DELETE' });
+        if (currentGameId === id) currentGameId = null;
+        await loadHistory();
+      }
 
-    async function saveChipsReturned(buyinId) {
-      const chips = parseInt(document.getElementById(`chips-${buyinId}`).value || '0', 10);
-      await fetch('/api/buyins', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: buyinId, field: 'chips_returned', value: chips })
-      });
-      await loadExistingGame();
-    }
+      function editPlayer(id) {
+        document.querySelectorAll('.edit-panel').forEach(p => { p.style.display = 'none'; });
+        const panel = document.getElementById(`edit-${id}`);
+        if (panel) {
+          panel.style.display = (panel.style.display === 'none' || !panel.style.display)
+            ? 'block'
+            : 'none';
+        }
+      }
 
-    async function updateCash(buyinId, delta) {
-      const input = document.getElementById(`cash-${buyinId}`);
-      const current = parseInt(input.value || '0', 10);
-      input.value = Math.max(0, current + delta);
-      await saveCash(buyinId);
-    }
+      async function updateChipsReturned(buyinId, delta) {
+        const input = document.getElementById(`chips-${buyinId}`);
+        const current = parseInt(input.value || '0', 10);
+        input.value = Math.max(0, current + delta);
+        await saveChipsReturned(buyinId);
+      }
 
-    async function saveCash(buyinId) {
-      const cash = parseInt(document.getElementById(`cash-${buyinId}`).value || '0', 10);
-      await fetch('/api/buyins', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: buyinId, field: 'cash_return', value: cash })
-      });
-      await loadExistingGame();
-    }
-  </script>
+      async function saveChipsReturned(buyinId) {
+        const chips = parseInt(document.getElementById(`chips-${buyinId}`).value || '0', 10);
+        await fetch('/api/buyins', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: buyinId, field: 'chips_returned', value: chips })
+        });
+        await loadExistingGame();
+      }
+
+      async function updateCash(buyinId, delta) {
+        const input = document.getElementById(`cash-${buyinId}`);
+        const current = parseInt(input.value || '0', 10);
+        input.value = Math.max(0, current + delta);
+        await saveCash(buyinId);
+      }
+
+      async function saveCash(buyinId) {
+        const cash = parseInt(document.getElementById(`cash-${buyinId}`).value || '0', 10);
+        await fetch('/api/buyins', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: buyinId, field: 'cash_return', value: cash })
+        });
+        await loadExistingGame();
+      }
+    </script>
 </body>
 
 </html>
