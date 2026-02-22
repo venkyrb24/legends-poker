@@ -138,7 +138,7 @@
       await fetch('/api/players', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name})
+        body: JSON.stringify({ name })
       });
       inp.value = '';
       loadPlayers();
@@ -166,7 +166,7 @@
         return;
       }
       if (!currentGameId) {
-        const latest = games[0]; // since /api/games returns ORDER BY id DESC
+        const latest = games[0]; // /api/games is ORDER BY id DESC
         currentGameId = latest.id;
       }
       await loadExistingGame();
@@ -180,7 +180,8 @@
 
       const games = await fetch('/api/games').then(r => r.json());
       const thisGame = games.find(g => g.id === currentGameId);
-      document.getElementById('game-id').textContent = thisGame ? thisGame.date : 'Game #' + currentGameId;
+      document.getElementById('game-id').textContent =
+        thisGame ? thisGame.date : 'Game #' + currentGameId;
 
       const gameRes = await fetch(`/api/game/${currentGameId}`);
       const data = await gameRes.json();
@@ -197,7 +198,6 @@
         totalBuyins += p.buyins;
         totalReturns += (chipsReturned * 0.20) + cashReturn;
 
-        const netClass = net > 0 ? 'net-win' : net < 0 ? 'net-lose' : 'net-even';
         const badgeClass = net > 0 ? 'win' : net < 0 ? 'lose' : 'even';
 
         return `
@@ -225,6 +225,50 @@
                 <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -2)">-2</button>
                 <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -3)">-3</button>
               </div>
+              <button class="btn-secondary"
+                      style="margin-top:4px;font-size:11px;padding:4px 8px;"
+                      onclick="editPlayer(${p.buyin_id})">
+                Edit
+              </button>
+            </div>
+          </div>
+          <div class="edit-panel" id="edit-${p.buyin_id}" style="display:none;margin-bottom:8px;">
+            <div style="margin-bottom:10px;">
+              <div class="section-header" style="margin:4px 0;">Chips back</div>
+              <div class="add-form">
+                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -50)">-50</button>
+                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -10)">-10</button>
+                <input type="number" id="chips-${p.buyin_id}" class="add-input"
+                       value="${chipsReturned}" onchange="saveChipsReturned(${p.buyin_id})">
+                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 10)">+10</button>
+                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 50)">+50</button>
+              </div>
+              <button class="btn-primary" style="margin-top:4px;"
+                      onclick="saveChipsReturned(${p.buyin_id})">
+                Save chips
+              </button>
+            </div>
+
+            <div style="margin-bottom:10px;">
+              <div class="section-header" style="margin:4px 0;">Return pots (200 chips)</div>
+              <div class="add-form">
+                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 200)">+1</button>
+                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 400)">+2</button>
+                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 600)">+3</button>
+                <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -200)">-1</button>
+              </div>
+            </div>
+
+            <div>
+              <div class="section-header" style="margin:4px 0;">Cash back</div>
+              <div class="add-form">
+                <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, -20)">-20</button>
+                <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, -10)">-10</button>
+                <input type="number" id="cash-${p.buyin_id}" class="add-input"
+                       value="${cashReturn}" onchange="saveCash(${p.buyin_id})">
+                <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, 10)">+10</button>
+                <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, 20)">+20</button>
+              </div>
             </div>
           </div>
         `;
@@ -232,7 +276,8 @@
 
       const totalChips = totalBuyins * 200;
       const returnChips = Math.floor(totalReturns / 0.20);
-      document.getElementById('total-buyins').textContent = `${totalBuyins} pots (${totalChips} chips)`;
+      document.getElementById('total-buyins').textContent =
+        `${totalBuyins} pots (${totalChips} chips)`;
 
       const diff = returnChips - totalChips;
       if (diff > 0) {
@@ -337,7 +382,7 @@
             </div>
         `;
         if (data.settlements.length) {
-          data.settlements.slice(0,3).forEach(s => {
+          data.settlements.slice(0, 3).forEach(s => {
             html += `<div class="settlement-item">${s}</div>`;
           });
         }
@@ -358,46 +403,47 @@
       await loadHistory();
     }
 
-    async function showAddPlayerModal() {
-      if (!currentGameId) return;
-      const modal = document.getElementById('add-player-modal');
-      modal.style.display = 'flex';
-
-      const allPlayers = await fetch('/api/players').then(r => r.json());
-      const gameData = await fetch(`/api/game/${currentGameId}`).then(r => r.json());
-      const currentIds = gameData.players.map(p => p.player_id);
-      const available = allPlayers.filter(p => !currentIds.includes(p.id));
-
-      document.getElementById('available-players').innerHTML = available.length
-        ? available.map(p => `
-            <div class="player-row">
-              <div class="player-name">
-                <input type="checkbox" id="add-p-${p.id}" value="${p.id}"> ${p.name}
-              </div>
-            </div>
-          `).join('')
-        : '<div class="section-header" style="margin-top:4px;">No players available</div>';
+    function editPlayer(id) {
+      document.querySelectorAll('.edit-panel').forEach(p => { p.style.display = 'none'; });
+      const panel = document.getElementById(`edit-${id}`);
+      if (panel) {
+        panel.style.display = (panel.style.display === 'none' || !panel.style.display)
+          ? 'block'
+          : 'none';
+      }
     }
 
-    function closeAddPlayerModal() {
-      document.getElementById('add-player-modal').style.display = 'none';
+    async function updateChipsReturned(buyinId, delta) {
+      const input = document.getElementById(`chips-${buyinId}`);
+      const current = parseInt(input.value || '0', 10);
+      input.value = Math.max(0, current + delta);
+      await saveChipsReturned(buyinId);
     }
 
-    async function addPlayersToGame() {
-      const checkboxes = document.querySelectorAll('#available-players input:checked');
-      const ids = Array.from(checkboxes).map(c => parseInt(c.value, 10));
-      if (!ids.length) {
-        closeAddPlayerModal();
-        return;
-      }
-      for (const id of ids) {
-        await fetch(`/api/game/${currentGameId}/add_player`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ player_id: id, buyins: 1, chips_returned: 0 })
-        });
-      }
-      closeAddPlayerModal();
+    async function saveChipsReturned(buyinId) {
+      const chips = parseInt(document.getElementById(`chips-${buyinId}`).value || '0', 10);
+      await fetch('/api/buyins', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ id: buyinId, field: 'chips_returned', value: chips })
+      });
+      await loadExistingGame();
+    }
+
+    async function updateCash(buyinId, delta) {
+      const input = document.getElementById(`cash-${buyinId}`);
+      const current = parseInt(input.value || '0', 10);
+      input.value = Math.max(0, current + delta);
+      await saveCash(buyinId);
+    }
+
+    async function saveCash(buyinId) {
+      const cash = parseInt(document.getElementById(`cash-${buyinId}`).value || '0', 10);
+      await fetch('/api/buyins', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ id: buyinId, field: 'cash_return', value: cash })
+      });
       await loadExistingGame();
     }
   </script>
