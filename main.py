@@ -196,31 +196,29 @@ def get_or_delete_game(game_id: int):
     if request.method == "DELETE":
         conn = get_db()
         conn.execute("DELETE FROM buyins WHERE game_id = ?", (game_id,))
-        conn.execute("DELETE FROM games WHERE id = ?", (game_id,))
-        conn.commit()
+            # GET
+        conn = get_db()
+        game = conn.execute("SELECT * FROM games WHERE id = ?", (game_id,)).fetchone()
+        players = conn.execute(
+            """
+            SELECT
+                b.id AS buyin_id,
+                b.player_id,
+                b.buyins,
+                b.chips_returned,
+                b.cash_return,
+                p.name
+            FROM buyins b
+            JOIN players p ON b.player_id = p.id
+            WHERE b.game_id = ?
+            """,
+            (game_id,),
+        ).fetchall()
         conn.close()
-        return jsonify({"success": True})
-
-    # GET
-    conn = get_db()
-    players = conn.execute(
-        """
-        SELECT
-            b.id AS buyin_id,
-            b.player_id,
-            b.buyins,
-            b.chips_returned,
-            b.cash_return,
-            p.name
-        FROM buyins b
-        JOIN players p ON b.player_id = p.id
-        WHERE b.game_id = ?
-        """,
-        (game_id,),
-    ).fetchall()
-    conn.close()
-    return jsonify({"players": [dict(p) for p in players]})
-
+        return jsonify({
+            "game": dict(game) if game else None,
+            "players": [dict(p) for p in players]
+        })
 
 # ---------- Routes: Buyins / updates ----------
 @app.route("/api/buyins", methods=["POST", "PUT"])
