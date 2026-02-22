@@ -402,7 +402,7 @@
 
         let html = '<div class="settlement-card">';
 
-        // Per-player summary
+        // Per‑player summary with correct net
         data.results.forEach(r => {
           const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
           const sign = r.net_cash > 0 ? '+' : '';
@@ -439,27 +439,51 @@
             '<div class="section-header" style="margin-top:4px;">No games yet</div>';
           return;
         }
+
         let html = '';
         for (const game of games.slice(0, 10)) {
           const res = await fetch(`/api/calculate/${game.id}`);
           const data = await res.json();
+
           html += `
-          <div class="history-card">
-            <div class="history-row">
-              <span>${game.date}</span>
-              <div class="history-actions">
-                <span class="history-link" onclick="resumeGame(${game.id})">View</span>
-                <span class="history-delete" onclick="deleteGame(${game.id})">Delete</span>
-              </div>
-            </div>
-        `;
-          if (data.settlements.length) {
+      <div class="history-card">
+        <div class="history-row">
+          <span>${game.date}</span>
+          <div class="history-actions">
+            <span class="history-link" onclick="resumeGame(${game.id})">View</span>
+            <span class="history-delete" onclick="deleteGame(${game.id})">Delete</span>
+          </div>
+        </div>
+    `;
+
+          // Per‑player nets for this past game
+          data.results.forEach(r => {
+            const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
+            const sign = r.net_cash > 0 ? '+' : '';
+            html += `
+        <div class="result-row">
+          <div class="result-left">
+            ${r.name}: ${r.buyins} buy-ins, ${r.chips_returned || 0} back
+          </div>
+          <div class="result-right ${cls}">
+            ${sign}$${r.net_cash}
+          </div>
+        </div>
+      `;
+          });
+
+          // Top 3 settlement lines
+          if (data.settlements && data.settlements.length) {
+            html += '<div class="settlement-list">';
             data.settlements.slice(0, 3).forEach(s => {
               html += `<div class="settlement-item">${s}</div>`;
             });
+            html += '</div>';
           }
-          html += '</div>';
+
+          html += '</div>'; // close history-card
         }
+
         document.getElementById('history-list').innerHTML = html;
       }
 
