@@ -397,12 +397,14 @@
       }
 
       async function calculate() {
+        if (!currentGameId) return;
+
         const res = await fetch(`/api/calculate/${currentGameId}`);
         const data = await res.json();
 
         let html = '<div class="settlement-card">';
 
-        // Per‑player summary with correct net
+        // Per-player summary with correct net
         data.results.forEach(r => {
           const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
           const sign = r.net_cash > 0 ? '+' : '';
@@ -431,6 +433,7 @@
 
         document.getElementById('settlements').innerHTML = html;
       }
+
 
       async function loadHistory() {
         const games = await fetch('/api/games').then(r => r.json());
