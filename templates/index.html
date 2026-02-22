@@ -1,112 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <title>Legends Poker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
+    <title>Legends Poker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
-  <div class="app-shell">
-    <header class="app-header">
-      <div class="app-title">
-        <div class="app-title-line">Legends Poker</div>
-        <div class="app-subtitle">Session tracker</div>
-      </div>
-      <div class="game-pill">
-        <span>Current game:</span>
-        <span id="game-id">—</span>
-      </div>
-    </header>
+    <div class="app-shell">
+        <header class="app-header">
+            <div class="app-title">
+                <div class="app-title-line">Legends Poker</div>
+                <div class="app-subtitle">Session tracker</div>
+            </div>
+            <div class="game-pill">
+                <span>Current game:</span>
+                <span id="game-id">—</span>
+            </div>
+        </header>
 
-    <!-- Home Menu -->
-    <div id="home" class="section active">
-      <div class="menu">
-        <button class="menu-btn" onclick="showSection('players')">
-          <span class="menu-icon">👥</span>
-          <span>Players</span>
-        </button>
-        <button class="menu-btn" onclick="showSection('game')">
-          <span class="menu-icon">🎮</span>
-          <span>Game</span>
-        </button>
-        <button class="menu-btn" onclick="showSection('history')">
-          <span class="menu-icon">📜</span>
-          <span>History</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Players Section -->
-    <div id="players" class="section">
-      <div class="back-link" onclick="showSection('home')">← Back</div>
-      <div class="section-header">Players</div>
-      <div class="add-form">
-        <input type="text" id="new-player" class="add-input" placeholder="Player name">
-        <button class="add-btn" onclick="addPlayer()">Add</button>
-      </div>
-      <div class="players-list" id="player-list"></div>
-    </div>
-
-    <!-- Game Section -->
-    <div id="game" class="section">
-      <div class="back-link" onclick="showSection('home')">← Back</div>
-
-      <div id="game-start">
-        <div class="section-header">Select players</div>
-        <div id="player-select"></div>
-        <div class="primary-actions">
-          <button class="btn-primary" onclick="createGame()">Start Game</button>
-        </div>
-      </div>
-
-      <div id="game-play" style="display:none;">
-        <div class="section-header">Table</div>
-        <div id="game-players"></div>
-
-        <div class="totals-bar">
-          <div class="totals-item">
-            Buy-ins: <span id="total-buyins" class="totals-highlight">0 pots (0 chips)</span>
-          </div>
-          <div class="totals-item">
-            Returns: <span id="total-returns" class="totals-highlight">0 chips ($0)</span>
-          </div>
+        <!-- Home Menu -->
+        <div id="home" class="section active">
+            <div class="menu">
+                <button class="menu-btn" onclick="showSection('players')">
+                    <span class="menu-icon">👥</span>
+                    <span>Players</span>
+                </button>
+                <button class="menu-btn" onclick="showSection('game')">
+                    <span class="menu-icon">🎮</span>
+                    <span>Game</span>
+                </button>
+                <button class="menu-btn" onclick="showSection('history')">
+                    <span class="menu-icon">📜</span>
+                    <span>History</span>
+                </button>
+            </div>
         </div>
 
-        <div class="primary-actions">
-          <button class="btn-primary" onclick="calculate()">Calculate Settlements</button>
-          <button class="btn-secondary" onclick="showAddPlayerModal()">+ Add Player</button>
-          <button class="btn-ghost" onclick="backToSelect()">← New Game</button>
+        <!-- Players Section -->
+        <div id="players" class="section">
+            <div class="back-link" onclick="showSection('home')">← Back</div>
+            <div class="section-header">Players</div>
+            <div class="add-form">
+                <input type="text" id="new-player" class="add-input" placeholder="Player name">
+                <button class="add-btn" onclick="addPlayer()">Add</button>
+            </div>
+            <div class="players-list" id="player-list"></div>
         </div>
 
-        <div id="settlements"></div>
-      </div>
+        <!-- Game Section -->
+        <div id="game" class="section">
+            <div class="back-link" onclick="showSection('home')">← Back</div>
+            
+            <div id="game-start">
+                <div class="section-header">Select players</div>
+                <div id="player-select"></div>
+                <div class="primary-actions">
+                    <button class="btn-primary" onclick="createGame()">Start Game</button>
+                </div>
+            </div>
 
-      <!-- Add Player Modal -->
-      <div id="add-player-modal" class="modal">
-        <div class="modal-content">
-          <h3 class="modal-header">Add Player to Game</h3>
-          <div id="available-players" class="modal-body"></div>
-          <div class="modal-footer">
-            <button class="btn-primary" onclick="addPlayersToGame()">Add Selected</button>
-            <button class="btn-secondary" onclick="closeAddPlayerModal()">Cancel</button>
-          </div>
+            <div id="game-play" style="display:none;">
+                <div class="section-header">Table</div>
+                <div id="game-players"></div>
+
+                <div class="totals-bar">
+                    <div class="totals-item">
+                        Buy-ins: <span id="total-buyins" class="totals-highlight">0 pots ($0)</span>
+                    </div>
+                    <div class="totals-item">
+                        Returns: <span id="total-returns" class="totals-highlight">$0 (Match)</span>
+                    </div>
+                </div>
+
+                <div class="primary-actions">
+                    <button class="btn-secondary" onclick="showAddPlayerModal()">+ Add Player</button>
+                    <button class="btn-ghost" onclick="backToSelect()">← New Game</button>
+                </div>
+
+                <div id="settlements"></div>
+            </div>
+
+            <!-- Add Player Modal -->
+            <div id="add-player-modal" class="modal">
+                <div class="modal-content">
+                    <h3 class="modal-header">Add Player to Game</h3>
+                    <div id="available-players" class="modal-body"></div>
+                    <div class="modal-footer">
+                        <button class="btn-primary" onclick="addPlayersToGame()">Add Selected</button>
+                        <button class="btn-secondary" onclick="closeAddPlayerModal()">Cancel</button>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
+
+        <!-- History Section -->
+        <div id="history" class="section">
+            <div class="back-link" onclick="showSection('home')">← Back</div>
+            <div class="section-header">Recent games</div>
+            <div id="history-list"></div>
+        </div>
     </div>
 
-    <!-- History Section -->
-    <div id="history" class="section">
-      <div class="back-link" onclick="showSection('home')">← Back</div>
-      <div class="section-header">Recent games</div>
-      <div id="history-list"></div>
-    </div>
-  </div>
-
-  <script src="{{ url_for('static', filename='main.js') }}"></script>
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
 </body>
-
 </html>
