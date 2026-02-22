@@ -4,15 +4,14 @@ from datetime import datetime
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
-
 DB_PATH = os.path.join(os.path.dirname(__file__), "poker.db")
+
 
 # ---------- Database helpers ----------
 def init_db() -> None:
     """Initialize database and seed default players if empty."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-
     c.execute(
         """
         CREATE TABLE IF NOT EXISTS players (
@@ -21,7 +20,6 @@ def init_db() -> None:
         )
         """
     )
-
     c.execute(
         """
         CREATE TABLE IF NOT EXISTS games (
@@ -31,7 +29,6 @@ def init_db() -> None:
         )
         """
     )
-
     c.execute(
         """
         CREATE TABLE IF NOT EXISTS buyins (
@@ -44,7 +41,6 @@ def init_db() -> None:
         )
         """
     )
-
     # Add default players if none exist
     c.execute("SELECT COUNT(*) FROM players")
     if c.fetchone()[0] == 0:
@@ -70,7 +66,6 @@ def init_db() -> None:
                 c.execute("INSERT INTO players (name) VALUES (?)", (name,))
             except sqlite3.IntegrityError:
                 pass
-
     conn.commit()
     conn.close()
 
@@ -154,7 +149,6 @@ def add_player_to_game(game_id: int):
     if player_id is None:
         conn.close()
         return jsonify({"error": "player_id required"}), 400
-
     # Check if player already in game
     existing = conn.execute(
         "SELECT id FROM buyins WHERE game_id = ? AND player_id = ?",
@@ -163,7 +157,6 @@ def add_player_to_game(game_id: int):
     if existing:
         conn.close()
         return jsonify({"error": "Player already in game"}), 400
-
     buyins = request.json.get("buyins", 0)
     chips_returned = request.json.get("chips_returned", 0)
     conn.execute(
@@ -196,29 +189,34 @@ def get_or_delete_game(game_id: int):
     if request.method == "DELETE":
         conn = get_db()
         conn.execute("DELETE FROM buyins WHERE game_id = ?", (game_id,))
-            # GET
-        conn = get_db()
-        game = conn.execute("SELECT * FROM games WHERE id = ?", (game_id,)).fetchone()
-        players = conn.execute(
-            """
-            SELECT
-                b.id AS buyin_id,
-                b.player_id,
-                b.buyins,
-                b.chips_returned,
-                b.cash_return,
-                p.name
-            FROM buyins b
-            JOIN players p ON b.player_id = p.id
-            WHERE b.game_id = ?
-            """,
-            (game_id,),
-        ).fetchall()
+        conn.execute("DELETE FROM games WHERE id = ?", (game_id,))
+        conn.commit()
         conn.close()
-        return jsonify({
-            "game": dict(game) if game else None,
-            "players": [dict(p) for p in players]
-        })
+        return jsonify({"success": True})
+    # GET
+    conn = get_db()
+    game = conn.execute("SELECT * FROM games WHERE id = ?", (game_id,)).fetchone()
+    players = conn.execute(
+        """
+        SELECT
+            b.id AS buyin_id,
+            b.player_id,
+            b.buyins,
+            b.chips_returned,
+            b.cash_return,
+            p.name
+        FROM buyins b
+        JOIN players p ON b.player_id = p.id
+        WHERE b.game_id = ?
+        """,
+        (game_id,),
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        "game": dict(game) if game else None,
+        "players": [dict(p) for p in players]
+    })
+
 
 # ---------- Routes: Buyins / updates ----------
 @app.route("/api/buyins", methods=["POST", "PUT"])
@@ -279,7 +277,6 @@ def calculate(game_id: int):
         (game_id,),
     ).fetchall()
     conn.close()
-
     results = []
     for p in players:
         cash_return = p["cash_return"] or 0
@@ -298,7 +295,6 @@ def calculate(game_id: int):
                 "net_cash": net_rounded,
             }
         )
-
     # Settlements: work on copies so original results are not mutated
     debtors = sorted(
         [{**r} for r in results if r["net_cash"] < 0],
@@ -308,7 +304,6 @@ def calculate(game_id: int):
         [{**r} for r in results if r["net_cash"] > 0],
         key=lambda x: -x["net_cash"],  # largest winner first
     )
-
     settlements = []
     while debtors and creditors:
         d = debtors[0]
@@ -321,7 +316,6 @@ def calculate(game_id: int):
             debtors.pop(0)
         if c["net_cash"] <= 0:
             creditors.pop(0)
-
     return jsonify({"results": results, "settlements": settlements})
 
 
