@@ -118,6 +118,52 @@
       if (id === 'history') loadHistory();
     }
 
+    async function showAddPlayerModal() {
+      if (!currentGameId) return;
+      const modal = document.getElementById('add-player-modal');
+      modal.style.display = 'flex';
+
+      // All players in DB
+      const allPlayers = await fetch('/api/players').then(r => r.json());
+      // Players already in this game
+      const gameData = await fetch(`/api/game/${currentGameId}`).then(r => r.json());
+      const currentIds = gameData.players.map(p => p.player_id);
+      // Filter to only those not yet seated
+      const available = allPlayers.filter(p => !currentIds.includes(p.id));
+
+      document.getElementById('available-players').innerHTML = available.length
+        ? available.map(p => `
+        <div class="player-row">
+          <div class="player-name">
+            <input type="checkbox" id="add-p-${p.id}" value="${p.id}"> ${p.name}
+          </div>
+        </div>
+      `).join('')
+        : '<div class="section-header" style="margin-top:4px;">No players available</div>';
+    }
+
+    function closeAddPlayerModal() {
+      document.getElementById('add-player-modal').style.display = 'none';
+    }
+
+    async function addPlayersToGame() {
+      const checkboxes = document.querySelectorAll('#available-players input:checked');
+      const ids = Array.from(checkboxes).map(c => parseInt(c.value, 10));
+      if (!ids.length) {
+        closeAddPlayerModal();
+        return;
+      }
+      for (const id of ids) {
+        await fetch(`/api/game/${currentGameId}/add_player`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player_id: id, buyins: 1, chips_returned: 0 })
+        });
+      }
+      closeAddPlayerModal();
+      await loadExistingGame();
+    }
+
     async function loadPlayers() {
       const players = await fetch('/api/players').then(r => r.json());
       document.getElementById('player-list').innerHTML = players.length
@@ -352,7 +398,7 @@
 
       let html = '<div class="settlement-card">';
 
-      // Per‑player summary
+      // Per-player summary
       data.results.forEach(r => {
         const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
         const sign = r.net_cash > 0 ? '+' : '';
@@ -368,11 +414,15 @@
     `;
       });
 
-      // Settlements lines
+      // Who owes whom
       html += '<div class="settlement-list">';
-      data.settlements.forEach(s => {
-        html += `<div class="settlement-item">${s}</div>`;
-      });
+      if (data.settlements && data.settlements.length) {
+        data.settlements.forEach(s => {
+          html += `<div class="settlement-item">${s}</div>`;
+        });
+      } else {
+        html += '<div class="settlement-item">No settlements needed.</div>';
+      }
       html += '</div></div>';
 
       document.getElementById('settlements').innerHTML = html;
