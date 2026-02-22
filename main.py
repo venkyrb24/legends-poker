@@ -338,6 +338,8 @@ def calculate(game_id: int):
 
 
 # ---------- Entry point ----------
+# Always initialize DB when the module is imported (Render / gunicorn)
+init_db()
 
 if __name__ == "__main__":
     init_db()
