@@ -45,9 +45,11 @@ async function showAddPlayerModal() {
     const allPlayers = await fetchAPI('/api/players');
     const data = await fetchAPI(`/api/game/${currentGameId}`);
     if (!allPlayers || !data) return;
+    
     const currentIds = data.players.map(p => p.player_id);
     const available = allPlayers.filter(p => !currentIds.includes(p.id));
     const playerList = document.getElementById('available-players');
+    
     if (available.length) {
         playerList.innerHTML = available.map(p => `
             <div class="player-row">
@@ -71,6 +73,7 @@ async function addPlayersToGame() {
     const checkboxes = document.querySelectorAll('#available-players input:checked');
     const ids = Array.from(checkboxes).map(c => parseInt(c.value, 10));
     if (!ids.length) return closeAddPlayerModal();
+
     try {
         for (const id of ids) {
             await fetchAPI(`/api/game/${currentGameId}/add_player`, {
@@ -93,13 +96,13 @@ async function loadPlayers() {
     const playerList = document.getElementById('player-list');
     if (players.length) {
         playerList.innerHTML = players.map(p => `
-            <div class="player-row">
-                <div class="player-name">${sanitizeHTML(p.name)}</div>
-                <div class="player-delete" onclick="deletePlayer(${p.id})">Delete</div>
+            <div class="item-card">
+                <span>${sanitizeHTML(p.name)}</span>
+                <button class="btn btn-danger" onclick="deletePlayer(${p.id})">Delete</button>
             </div>
         `).join('');
     } else {
-        playerList.innerHTML = '<div class="section-header no-players-message">No players yet</div>';
+        playerList.innerHTML = '<div class="empty-state">No players yet</div>';
     }
 }
 
@@ -107,6 +110,7 @@ async function addPlayer() {
     const inp = document.getElementById('new-player');
     const name = inp.value.trim();
     if (!name) return showError('Player name cannot be empty');
+    
     const result = await fetchAPI('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -130,8 +134,10 @@ async function loadGame() {
     document.getElementById('game-start').style.display = 'block';
     document.getElementById('game-play').style.display = 'none';
     document.getElementById('settlements').innerHTML = '';
+
     const players = await fetchAPI('/api/players');
     if (!players) return;
+
     const playerSelect = document.getElementById('player-select');
     if (players.length) {
         playerSelect.innerHTML = players.map(p => `
@@ -142,8 +148,9 @@ async function loadGame() {
             </div>
         `).join('');
     } else {
-        playerSelect.innerHTML = '<div class="section-header no-players-message">No players yet.</div>';
+        playerSelect.innerHTML = '<div class="empty-state">No players yet.</div>';
     }
+
     const games = await fetchAPI('/api/games');
     if (!games || !games.length) {
         document.getElementById('game-id').textContent = '—';
@@ -157,9 +164,11 @@ async function createGame() {
     const checkboxes = document.querySelectorAll('#player-select input:checked');
     const playerIds = Array.from(checkboxes).map(c => parseInt(c.value, 10));
     if (!playerIds.length) return showError('Select at least one player');
+
     const gameData = await fetchAPI('/api/game', { method: 'POST' });
     if (!gameData) return;
     currentGameId = gameData.game_id;
+
     for (const playerId of playerIds) {
         await fetchAPI(`/api/game/${currentGameId}/add_player`, {
             method: 'POST',
@@ -186,7 +195,6 @@ async function loadExistingGame() {
 
     const gameMeta = data.game;
     const players = data.players;
-
     document.getElementById('game-id').textContent = gameMeta ? gameMeta.date : `Game #${currentGameId}`;
 
     let totalBuyins = 0;
@@ -196,55 +204,65 @@ async function loadExistingGame() {
         const chips = p.chips_returned || 0;
         const cash = p.cash_return || 0;
         const net = (chips * 0.2) + cash - (p.buyins * 40);
+        const pots = Math.floor(chips / 200);
+        const extra = chips % 200;
+        
         totalBuyins += p.buyins;
         totalReturns += (chips * 0.2) + cash;
-        const badgeClass = net > 0 ? 'win' : net < 0 ? 'lose' : 'even';
+
+        const badgeClass = net > 0 ? 'win' : (net < 0 ? 'lose' : 'even');
+
         return `
-            <div class="player-row">
-                <div style="flex:1">
-                    <div class="player-name">${sanitizeHTML(p.name)}</div>
-                    <div class="player-meta">
-                        <div class="player-meta-line"><span>Buy-ins</span><span>${p.buyins}</span></div>
-                        <div class="player-meta-line"><span>Chips back</span><span>${chips}</span></div>
+            <div class="player-card">
+                <div class="player-main">
+                    <div class="player-info">
+                        <div class="player-name-row">
+                            <span class="player-name">${sanitizeHTML(p.name)}</span>
+                            <span class="net-badge ${badgeClass}">${net > 0 ? '+' : ''}$${Math.round(net)}</span>
+                        </div>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <label>Buy-ins</label>
+                                <span class="stat-val">${p.buyins}</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Chips back</label>
+                                <span class="stat-val">${chips} <span class="pot-hint">(${pots} pots${extra > 0 ? ' + ' + extra : ''})</span></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="quick-actions">
+                        <button class="btn btn-action btn-plus" onclick="quickAddBuyin(${p.buyin_id}, 1)">+1</button>
+                        <button class="btn btn-action btn-minus" onclick="quickAddBuyin(${p.buyin_id}, -1)">-1</button>
+                        <button class="btn btn-action btn-edit" onclick="editPlayer(${p.buyin_id})">Edit</button>
+                        <button class="btn btn-action btn-remove" onclick="removePlayerFromGame(${p.buyin_id})">×</button>
                     </div>
                 </div>
-                <div class="player-right">
-                    <div class="net-badge ${badgeClass}">${net > 0 ? '+' : ''}$${Math.round(net)}</div>
-                    <div class="pot-buttons">
-                        <button class="btn-chip blue" onclick="quickAddBuyin(${p.buyin_id}, 1)">+1</button>
-                        <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -1)">-1</button>
+
+                <div id="edit-${p.buyin_id}" class="edit-panel" style="display: none;">
+                    <div class="edit-section">
+                        <label>Chips back</label>
+                        <div class="edit-controls">
+                            <button class="btn btn-sm" onclick="updateChipsReturned(${p.buyin_id}, -50)">-50</button>
+                            <button class="btn btn-sm" onclick="updateChipsReturned(${p.buyin_id}, -10)">-10</button>
+                            <input type="number" id="chips-${p.buyin_id}" class="add-input" value="${chips}" onchange="saveChipsReturned(${p.buyin_id})">
+                            <button class="btn btn-sm" onclick="updateChipsReturned(${p.buyin_id}, 10)">+10</button>
+                            <button class="btn btn-sm" onclick="updateChipsReturned(${p.buyin_id}, 50)">+50</button>
+                        </div>
+                        <div class="pot-shortcuts">
+                            <label>Return pots (200 chips)</label>
+                            <button class="btn btn-sm btn-pot" onclick="updateChipsReturned(${p.buyin_id}, 200)">+1</button>
+                            <button class="btn btn-sm btn-pot" onclick="updateChipsReturned(${p.buyin_id}, 400)">+2</button>
+                            <button class="btn btn-sm btn-pot" onclick="updateChipsReturned(${p.buyin_id}, -200)">-1</button>
+                        </div>
                     </div>
-                    <div style="display:flex; gap:4px; margin-top:4px;">
-                        <button class="btn-secondary" style="font-size:11px;padding:4px 8px;flex:1" onclick="editPlayer(${p.buyin_id})">Edit</button>
-                        <button class="btn-ghost" style="color:var(--danger);font-size:11px;padding:4px 8px;" onclick="removePlayerFromGame(${p.buyin_id})">×</button>
-                    </div>
-                </div>
-            </div>
-            <div class="edit-panel" id="edit-${p.buyin_id}" style="display:none;margin-bottom:8px;">
-                <div style="margin-bottom:10px;">
-                    <div class="section-header" style="margin:4px 0;">Chips back</div>
-                    <div class="add-form">
-                        <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -50)">-50</button>
-                        <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -10)">-10</button>
-                        <input type="number" id="chips-${p.buyin_id}" class="add-input" value="${chips}" onchange="saveChipsReturned(${p.buyin_id})">
-                        <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 10)">+10</button>
-                        <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 50)">+50</button>
-                    </div>
-                </div>
-                <div style="margin-bottom:10px;">
-                    <div class="section-header" style="margin:4px 0;">Return pots (200 chips)</div>
-                    <div class="add-form">
-                        <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 200)">+1</button>
-                        <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 400)">+2</button>
-                        <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -200)">-1</button>
-                    </div>
-                </div>
-                <div>
-                    <div class="section-header" style="margin:4px 0;">Cash back</div>
-                    <div class="add-form">
-                        <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, -10)">-10</button>
-                        <input type="number" id="cash-${p.buyin_id}" class="add-input" value="${cash}" onchange="saveCash(${p.buyin_id})">
-                        <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, 10)">+10</button>
+                    <div class="edit-section">
+                        <label>Cash back</label>
+                        <div class="edit-controls">
+                            <button class="btn btn-sm" onclick="updateCash(${p.buyin_id}, -10)">-10</button>
+                            <input type="number" id="cash-${p.buyin_id}" class="add-input" value="${cash}" onchange="saveCash(${p.buyin_id})">
+                            <button class="btn btn-sm" onclick="updateCash(${p.buyin_id}, 10)">+10</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -259,6 +277,7 @@ async function loadExistingGame() {
     const totalChips = totalBuyins * 200;
     const returnChips = Math.floor(totalReturns / 0.2);
     document.getElementById('total-buyins').textContent = `${totalBuyins} pots ($${totalBuyins * 40})`;
+    
     const diff = returnChips - totalChips;
     const returnsSpan = document.getElementById('total-returns');
     if (diff > 0) {
@@ -268,6 +287,7 @@ async function loadExistingGame() {
     } else {
         returnsSpan.textContent = `$${Math.round(totalReturns)} (Match)`;
     }
+
     await calculate(true);
 }
 
@@ -284,6 +304,7 @@ async function quickAddBuyin(buyinId, amount) {
     const player = data.players.find(p => p.buyin_id === buyinId);
     const current = player ? player.buyins : 0;
     const newValue = Math.max(0, current + amount);
+    
     if (await fetchAPI('/api/buyins', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -297,24 +318,28 @@ async function calculate(silent = false) {
     if (!currentGameId) return;
     const data = await fetchAPI(`/api/calculate/${currentGameId}`);
     if (!data) return;
-    let html = '<div class="settlement-card">';
+
+    let html = '<div class="summary-list">';
     data.results.forEach(r => {
-        const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
+        const cls = r.net_cash > 0 ? 'net-win' : (r.net_cash < 0 ? 'net-lose' : 'net-even');
         const sign = r.net_cash > 0 ? '+' : '';
         html += `
-            <div class="result-row">
-                <div class="result-left">${sanitizeHTML(r.name)}: ${r.buyins} buy-ins, ${r.chips_returned || 0} back</div>
-                <div class="result-right ${cls}">${sign}$${r.net_cash}</div>
+            <div class="summary-item">
+                <span class="sum-name">${sanitizeHTML(r.name)}: ${r.buyins} buy-ins, ${r.chips_returned || 0} back</span>
+                <span class="sum-net ${cls}">${sign}$${r.net_cash}</span>
             </div>
         `;
     });
-    html += '<div class="settlement-list">';
+    html += '</div>';
+
     if (data.settlements && data.settlements.length) {
-        data.settlements.forEach(s => html += `<div class="settlement-item">${sanitizeHTML(s)}</div>`);
+        html += '<div class="settlements-box">';
+        data.settlements.forEach(s => html += `<div class="settlement-line">${sanitizeHTML(s)}</div>`);
+        html += '</div>';
     } else {
-        html += '<div class="settlement-item">No settlements needed.</div>';
+        html += '<div class="empty-state">No settlements needed.</div>';
     }
-    html += '</div></div>';
+
     const settlementsDiv = document.getElementById('settlements');
     if (settlementsDiv) settlementsDiv.innerHTML = html;
 }
@@ -324,34 +349,40 @@ async function loadHistory() {
     if (!games) return;
     const historyList = document.getElementById('history-list');
     if (!games.length) {
-        historyList.innerHTML = '<div class="section-header no-players-message">No games yet</div>';
+        historyList.innerHTML = '<div class="empty-state">No games yet</div>';
         return;
     }
+
     let html = '';
     for (const game of games.slice(0, 5)) {
         const data = await fetchAPI(`/api/calculate/${game.id}`);
         if (!data) continue;
+
         html += `
             <div class="history-card">
-                <div class="history-row">
-                    <span>${sanitizeHTML(game.date)}</span>
+                <div class="history-header">
+                    <span class="history-date">${sanitizeHTML(game.date)}</span>
                     <div class="history-actions">
-                        <span class="history-link" onclick="resumeGame(${game.id})">View</span>
-                        <span class="history-delete" onclick="deleteGame(${game.id})">Delete</span>
+                        <button class="btn btn-sm" onclick="resumeGame(${game.id})">View</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteGame(${game.id})">Delete</button>
                     </div>
                 </div>
+                <div class="history-summary">
         `;
         data.results.forEach(r => {
-            const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
+            const cls = r.net_cash > 0 ? 'net-win' : (r.net_cash < 0 ? 'net-lose' : 'net-even');
             const sign = r.net_cash > 0 ? '+' : '';
             html += `
-                <div class="result-row" style="font-size:11px">
-                    <div class="result-left">${sanitizeHTML(r.name)}</div>
-                    <div class="result-right ${cls}">${sign}$${r.net_cash}</div>
+                <div class="history-player">
+                    <span>${sanitizeHTML(r.name)}</span>
+                    <span class="${cls}">${sign}$${r.net_cash}</span>
                 </div>
             `;
         });
-        html += '</div>';
+        html += `
+                </div>
+            </div>
+        `;
     }
     historyList.innerHTML = html;
 }
