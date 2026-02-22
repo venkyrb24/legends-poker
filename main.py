@@ -178,6 +178,19 @@ def add_player_to_game(game_id: int):
     return jsonify({"success": True})
 
 
+@app.route("/api/game/<int:game_id>/remove_player/<int:buyin_id>", methods=["DELETE"])
+def remove_player_from_game(game_id: int, buyin_id: int):
+    """Remove a player entry from an active game by their buyin row id."""
+    conn = get_db()
+    conn.execute(
+        "DELETE FROM buyins WHERE id = ? AND game_id = ?",
+        (buyin_id, game_id),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+
 @app.route("/api/game/<int:game_id>", methods=["GET", "DELETE"])
 def get_or_delete_game(game_id: int):
     if request.method == "DELETE":
