@@ -192,7 +192,7 @@ async function loadExistingGame() {
 
     const gameMeta = data.game;
     const players = data.players;
-    document.getElementById('game-id').textContent = gameMeta ? gameMeta.date : `Game #${currentGameId}`;
+    document.getElementById('game-id').textContent = gameMeta ? gameMeta.date : \`Game #\${currentGameId}\`;
 
     let totalBuyins = 0;
     let totalReturns = 0;
