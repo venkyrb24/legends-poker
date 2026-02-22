@@ -1,0 +1,9 @@
+{
+  "build": {
+    "builder": "NIXPACKS_PYTHON"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "startCommand": "gunicorn app:app"
+  }
+}
