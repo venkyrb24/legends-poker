@@ -107,7 +107,6 @@ async function addPlayer() {
     const inp = document.getElementById('new-player');
     const name = inp.value.trim();
     if (!name) return showError('Player name cannot be empty');
-    
     const result = await fetchAPI('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -181,18 +180,18 @@ async function loadExistingGame() {
     if (!currentGameId) return;
     document.getElementById('game-start').style.display = 'none';
     document.getElementById('game-play').style.display = 'block';
-    
+
     const data = await fetchAPI(`/api/game/${currentGameId}`);
     if (!data) return;
-    
+
     const gameMeta = data.game;
     const players = data.players;
-    
+
     document.getElementById('game-id').textContent = gameMeta ? gameMeta.date : `Game #${currentGameId}`;
-    
+
     let totalBuyins = 0;
     let totalReturns = 0;
-    
+
     document.getElementById('game-players').innerHTML = players.map(p => {
         const chips = p.chips_returned || 0;
         const cash = p.cash_return || 0;
@@ -200,7 +199,6 @@ async function loadExistingGame() {
         totalBuyins += p.buyins;
         totalReturns += (chips * 0.2) + cash;
         const badgeClass = net > 0 ? 'win' : net < 0 ? 'lose' : 'even';
-        
         return `
             <div class="player-row">
                 <div style="flex:1">
@@ -252,12 +250,12 @@ async function loadExistingGame() {
             </div>
         `;
     }).join('');
-    
+
     if (activeEditId) {
         const panel = document.getElementById(`edit-${activeEditId}`);
         if (panel) panel.style.display = 'block';
     }
-    
+
     const totalChips = totalBuyins * 200;
     const returnChips = Math.floor(totalReturns / 0.2);
     document.getElementById('total-buyins').textContent = `${totalBuyins} pots ($${totalBuyins * 40})`;
@@ -299,7 +297,6 @@ async function calculate(silent = false) {
     if (!currentGameId) return;
     const data = await fetchAPI(`/api/calculate/${currentGameId}`);
     if (!data) return;
-    
     let html = '<div class="settlement-card">';
     data.results.forEach(r => {
         const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
@@ -311,7 +308,6 @@ async function calculate(silent = false) {
             </div>
         `;
     });
-    
     html += '<div class="settlement-list">';
     if (data.settlements && data.settlements.length) {
         data.settlements.forEach(s => html += `<div class="settlement-item">${sanitizeHTML(s)}</div>`);
@@ -319,7 +315,6 @@ async function calculate(silent = false) {
         html += '<div class="settlement-item">No settlements needed.</div>';
     }
     html += '</div></div>';
-    
     const settlementsDiv = document.getElementById('settlements');
     if (settlementsDiv) settlementsDiv.innerHTML = html;
 }
@@ -332,7 +327,6 @@ async function loadHistory() {
         historyList.innerHTML = '<div class="section-header no-players-message">No games yet</div>';
         return;
     }
-    
     let html = '';
     for (const game of games.slice(0, 5)) {
         const data = await fetchAPI(`/api/calculate/${game.id}`);
@@ -379,18 +373,13 @@ function editPlayer(id) {
     const panel = document.getElementById(`edit-${id}`);
     if (!panel) return;
     const isHidden = panel.style.display === 'none';
-    
     document.querySelectorAll('.edit-panel').forEach(p => p.style.display = 'none');
     if (isHidden) {
         panel.style.display = 'block';
         activeEditId = id;
     } else {
         activeEditId = null;
-    }refactor: optimize game loading and fix edit panel persistence
-
-- use game metadata from /api/game/<id>
-- track activeEditId to persist edit panels across refreshes
-- cleanup unused games fetch in loadExistingGame
+    }
 }
 
 async function updateChipsReturned(id, delta) {
