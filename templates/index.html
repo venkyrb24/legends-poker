@@ -97,6 +97,8 @@
       color: var(--text-muted);
     }
 
+    /* Player card (table) */
+
     .player-row {
       display: grid;
       grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(0, 1.1fr);
@@ -155,6 +157,37 @@
       background: #1f263e;
       color: #c0c5dd;
     }
+
+    /* Player selection rows */
+
+    .player-select-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      margin-bottom: 4px;
+      border-radius: 10px;
+      background: #101628;
+      border: 1px solid #262c3f;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .player-select-row.selected {
+      border-color: var(--accent);
+      background: #132538;
+    }
+
+    .player-select-name {
+      font-weight: 500;
+    }
+
+    .player-select-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Pot buttons */
 
     .pot-buttons {
       display: flex;
@@ -374,7 +407,7 @@
     </header>
 
     <!-- Players selection -->
-    <div class="section-header">Players</div>
+    <div class="section-header">Players (tap to seat)</div>
     <div id="player-select-container"></div>
     <div class="primary-actions" style="margin-top: 6px;">
       <button id="btn-new-game" class="btn-ghost">← New Game</button>
@@ -414,6 +447,7 @@
 
   <script>
     let players = [];
+    let selectedPlayerIds = new Set();
     let currentGameId = null;
     let currentGameDate = null;
 
@@ -427,27 +461,30 @@
       const container = document.getElementById("player-select-container");
       container.innerHTML = "";
       players.forEach((p) => {
-        const div = document.createElement("div");
-        div.style.display = "flex";
-        div.style.justifyContent = "space-between";
-        div.style.alignItems = "center";
-        div.style.padding = "6px 8px";
-        div.style.marginBottom = "4px";
-        div.style.borderRadius = "10px";
-        div.style.background = "#101628";
-        div.style.border = "1px solid #262c3f";
+        const row = document.createElement("div");
+        row.className = "player-select-row";
+        row.dataset.playerId = p.id;
 
-        const left = document.createElement("span");
-        left.textContent = p.name;
+        const selected = selectedPlayerIds.has(p.id);
+        if (selected) row.classList.add("selected");
 
-        const right = document.createElement("span");
-        right.style.fontSize = "11px";
-        right.style.color = "#8c96b8";
-        right.textContent = "Tap in game to add buy-ins";
+        row.innerHTML = `
+          <div class="player-select-name">${p.name}</div>
+          <div class="player-select-hint">
+            ${selected ? "Selected" : "Tap to seat"}
+          </div>
+        `;
 
-        div.appendChild(left);
-        div.appendChild(right);
-        container.appendChild(div);
+        row.addEventListener("click", () => {
+          if (selectedPlayerIds.has(p.id)) {
+            selectedPlayerIds.delete(p.id);
+          } else {
+            selectedPlayerIds.add(p.id);
+          }
+          renderPlayerSelect();
+        });
+
+        container.appendChild(row);
       });
     }
 
@@ -582,12 +619,33 @@
     }
 
     async function createGame() {
+      // Use currently selected players
+      const ids = Array.from(selectedPlayerIds);
+      if (ids.length === 0) {
+        alert("Select at least one player to start a game.");
+        return;
+      }
+
       const res = await fetch("/api/game", { method: "POST" });
       const data = await res.json();
       currentGameId = data.game_id;
       currentGameDate = new Date().toLocaleString();
       updateGamePill();
       localStorage.setItem("currentGameId", String(currentGameId));
+
+      // Add selected players with 1 buy-in each
+      for (const playerId of ids) {
+        await fetch(`/api/game/${currentGameId}/add_player`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            player_id: playerId,
+            buyins: 1,
+            chips_returned: 0,
+          }),
+        });
+      }
+
       await loadGame(currentGameId, currentGameDate);
       loadHistory();
     }
@@ -600,7 +658,6 @@
       const res = await fetch(`/api/game/${id}`);
       const data = await res.json();
 
-      // For now, these don't include net_cash; it's added by /api/calculate
       const gamePlayers = data.players.map((p) => ({
         ...p,
         net_cash: 0,
@@ -672,6 +729,24 @@
     function wireEvents() {
       document
         .getElementById("btn-new-game")
+        .addEventListener("click", () => {
+          // Clear seat selections and current game
+          selectedPlayerIds.clear();
+          renderPlayerSelect();
+          currentGameId = null;
+          currentGameDate = null;
+          updateGamePill();
+          document.getElementById("game-players").innerHTML = "";
+          document.getElementById("total-buyins").textContent =
+            "Total Buy-ins: —";
+          document.getElementById("total-returns").textContent =
+            "Total Returns: —";
+          document.getElementById("settlements-card").style.display = "none";
+          localStorage.removeItem("currentGameId");
+        });
+
+      document
+        .getElementById("btn-start-game")
         .addEventListener("click", createGame);
 
       document
