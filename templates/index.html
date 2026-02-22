@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Legends Poker</title>
@@ -7,6 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
   <div class="app-shell">
     <header class="app-header">
@@ -84,12 +86,15 @@
       </div>
 
       <!-- Add Player Modal -->
-      <div id="add-player-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;">
+      <div id="add-player-modal"
+        style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;">
         <div style="background:#16213e;padding:20px;border-radius:12px;width:90%;max-width:350px;">
           <h3 style="margin-bottom:15px;">Add Player to Game</h3>
           <div id="available-players"></div>
-          <button class="btn-primary" onclick="addPlayersToGame()" style="width:100%;margin-top:15px;">Add Selected</button>
-          <button class="btn-secondary" onclick="closeAddPlayerModal()" style="width:100%;margin-top:10px;">Cancel</button>
+          <button class="btn-primary" onclick="addPlayersToGame()" style="width:100%;margin-top:15px;">Add
+            Selected</button>
+          <button class="btn-secondary" onclick="closeAddPlayerModal()"
+            style="width:100%;margin-top:10px;">Cancel</button>
         </div>
       </div>
     </div>
@@ -137,7 +142,7 @@
       if (!name) return;
       await fetch('/api/players', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name })
       });
       inp.value = '';
@@ -308,7 +313,7 @@
       for (const playerId of playerIds) {
         await fetch(`/api/game/${currentGameId}/add_player`, {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ player_id: playerId, buyins: 1, chips_returned: 0 })
         });
       }
@@ -331,7 +336,7 @@
 
       await fetch('/api/buyins', {
         method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: buyinId, field: 'buyins', value: newValue })
       });
       await loadExistingGame();
@@ -344,12 +349,17 @@
       let html = '<div class="settlement-card">';
       data.results.forEach(r => {
         const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
+        const sign = r.net_cash > 0 ? '+' : '';
         html += `
-          <div class="result-row">
-            <div class="result-left">${r.name}: ${r.buyins} buy-ins, ${r.chips_returned || 0} back</div>
-            <div class="result-right ${cls}">$${r.net_cash}</div>
-          </div>
-        `;
+      <div class="result-row">
+        <div class="result-left">
+          ${r.name}: ${r.buyins} buy-ins, ${r.chips_returned || 0} back
+        </div>
+        <div class="result-right ${cls}">
+          ${sign}$${r.net_cash}
+        </div>
+      </div>
+    `;
       });
       html += '<div class="settlement-list">';
       data.settlements.forEach(s => {
@@ -424,7 +434,7 @@
       const chips = parseInt(document.getElementById(`chips-${buyinId}`).value || '0', 10);
       await fetch('/api/buyins', {
         method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: buyinId, field: 'chips_returned', value: chips })
       });
       await loadExistingGame();
@@ -441,11 +451,12 @@
       const cash = parseInt(document.getElementById(`cash-${buyinId}`).value || '0', 10);
       await fetch('/api/buyins', {
         method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: buyinId, field: 'cash_return', value: cash })
       });
       await loadExistingGame();
     }
   </script>
 </body>
+
 </html>
