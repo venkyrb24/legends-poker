@@ -43,7 +43,6 @@ async function showAddPlayerModal() {
     showError('No active game');
     return;
   }
-
   const modal = document.getElementById('add-player-modal');
   const allPlayers = await fetchAPI('/api/players');
   const gameData = await fetchAPI(`/api/game/${currentGameId}`);
@@ -119,7 +118,6 @@ async function loadPlayers() {
 async function addPlayer() {
   const inp = document.getElementById('new-player');
   const name = inp.value.trim();
-
   if (!name) {
     showError('Player name cannot be empty');
     return;
@@ -139,7 +137,6 @@ async function addPlayer() {
 
 async function deletePlayer(id) {
   if (!confirm('Delete this player?')) return;
-
   const result = await fetchAPI(`/api/players/${id}`, { method: 'DELETE' });
   if (result) {
     await loadPlayers();
@@ -195,7 +192,6 @@ async function createGame() {
     if (!gameData) return;
 
     currentGameId = gameData.game_id;
-
     for (const playerId of playerIds) {
       await fetchAPI(`/api/game/${currentGameId}/add_player`, {
         method: 'POST',
@@ -203,7 +199,6 @@ async function createGame() {
         body: JSON.stringify({ player_id: playerId, buyins: 1, chips_returned: 0 })
       });
     }
-
     await loadExistingGame();
   } catch (error) {
     showError('Failed to create game');
@@ -211,6 +206,7 @@ async function createGame() {
 }
 
 async function backToSelect() {
+  if (!confirm('Start a new game? Current progress will be saved in History.')) return;
   currentGameId = null;
   await loadGame();
 }
@@ -233,7 +229,6 @@ async function loadExistingGame() {
   let totalReturns = 0;
 
   document.getElementById('game-players').innerHTML = gameData.players.map(p => {
-    const totalChips = p.buyins * 200;
     const chipsReturned = p.chips_returned || 0;
     const cashReturn = p.cash_return || 0;
     const net = (chipsReturned * 0.20) + cashReturn - (p.buyins * 40);
@@ -245,7 +240,7 @@ async function loadExistingGame() {
 
     return `
       <div class="player-row">
-        <div>
+        <div style="flex:1">
           <div class="player-name">${sanitizeHTML(p.name)}</div>
           <div class="player-meta">
             <div class="player-meta-line">
@@ -253,10 +248,6 @@ async function loadExistingGame() {
             </div>
             <div class="player-meta-line">
               <span>Chips back</span><span>${chipsReturned}</span>
-            </div>
-            <div class="player-meta-line">
-              <span>Returned</span>
-              <span>${chipsReturned} chips ($${(chipsReturned * 0.20 + cashReturn).toFixed(0)})</span>
             </div>
           </div>
         </div>
@@ -266,16 +257,12 @@ async function loadExistingGame() {
           </div>
           <div class="pot-buttons">
             <button class="btn-chip blue" onclick="quickAddBuyin(${p.buyin_id}, 1)">+1</button>
-            <button class="btn-chip blue" onclick="quickAddBuyin(${p.buyin_id}, 2)">+2</button>
-            <button class="btn-chip blue" onclick="quickAddBuyin(${p.buyin_id}, 3)">+3</button>
             <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -1)">-1</button>
-            <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -2)">-2</button>
-            <button class="btn-chip red" onclick="quickAddBuyin(${p.buyin_id}, -3)">-3</button>
           </div>
-          <button class="btn-secondary" style="margin-top:4px;font-size:11px;padding:4px 8px;"
-                  onclick="editPlayer(${p.buyin_id})">
-            Edit
-          </button>
+          <div style="display:flex; gap:4px; margin-top:4px;">
+            <button class="btn-secondary" style="font-size:11px;padding:4px 8px;flex:1" onclick="editPlayer(${p.buyin_id})">Edit</button>
+            <button class="btn-ghost" style="color:var(--danger);font-size:11px;padding:4px 8px;" onclick="removePlayerFromGame(${p.buyin_id})">×</button>
+          </div>
         </div>
       </div>
       <div class="edit-panel" id="edit-${p.buyin_id}" style="display:none;margin-bottom:8px;">
@@ -284,41 +271,25 @@ async function loadExistingGame() {
           <div class="add-form">
             <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -50)">-50</button>
             <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -10)">-10</button>
-            <input type="number" id="chips-${p.buyin_id}" class="add-input"
-                   value="${chipsReturned}" onchange="saveChipsReturned(${p.buyin_id})">
+            <input type="number" id="chips-${p.buyin_id}" class="add-input" value="${chipsReturned}" onchange="saveChipsReturned(${p.buyin_id})">
             <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 10)">+10</button>
             <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 50)">+50</button>
           </div>
-          <button class="btn-primary" style="margin-top:4px;"
-                  onclick="saveChipsReturned(${p.buyin_id})">
-            Save chips
-          </button>
         </div>
-
         <div style="margin-bottom:10px;">
           <div class="section-header" style="margin:4px 0;">Return pots (200 chips)</div>
           <div class="add-form">
             <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 200)">+1</button>
             <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 400)">+2</button>
-            <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, 600)">+3</button>
             <button class="btn-secondary" onclick="updateChipsReturned(${p.buyin_id}, -200)">-1</button>
           </div>
-          <div class="add-form" style="margin-top:4px;">
-            <input type="number" min="0" id="pots-${p.buyin_id}" class="add-input"
-                   placeholder="Pots (#)" onchange="savePots(${p.buyin_id})">
-            <button class="btn-secondary" onclick="savePots(${p.buyin_id})">Set pots</button>
-          </div>
         </div>
-
         <div>
           <div class="section-header" style="margin:4px 0;">Cash back</div>
           <div class="add-form">
-            <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, -20)">-20</button>
             <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, -10)">-10</button>
-            <input type="number" id="cash-${p.buyin_id}" class="add-input"
-                   value="${cashReturn}" onchange="saveCash(${p.buyin_id})">
+            <input type="number" id="cash-${p.buyin_id}" class="add-input" value="${cashReturn}" onchange="saveCash(${p.buyin_id})">
             <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, 10)">+10</button>
-            <button class="btn-secondary" onclick="updateCash(${p.buyin_id}, 20)">+20</button>
           </div>
         </div>
       </div>
@@ -327,27 +298,36 @@ async function loadExistingGame() {
 
   const totalChips = totalBuyins * 200;
   const returnChips = Math.floor(totalReturns / 0.20);
-  document.getElementById('total-buyins').textContent = `${totalBuyins} pots (${totalChips} chips)`;
-
+  document.getElementById('total-buyins').textContent = `${totalBuyins} pots ($${totalBuyins * 40})`;
+  
   const diff = returnChips - totalChips;
   const returnsSpan = document.getElementById('total-returns');
   if (diff > 0) {
-    returnsSpan.innerHTML = `⚠️ ${returnChips} chips ($${Math.round(totalReturns)}) - INFLATED +${diff}`;
+    returnsSpan.innerHTML = `⚠️ $${Math.round(totalReturns)} (+$${Math.round(diff * 0.20)})`;
   } else if (diff < 0) {
-    returnsSpan.innerHTML = `⚠️ ${returnChips} chips ($${Math.round(totalReturns)}) - SHORT ${Math.abs(diff)}`;
+    returnsSpan.innerHTML = `⚠️ $${Math.round(totalReturns)} (-$${Math.round(Math.abs(diff) * 0.20)})`;
   } else {
-    returnsSpan.textContent = `${returnChips} chips ($${Math.round(totalReturns)}) - MATCH!`;
+    returnsSpan.textContent = `$${Math.round(totalReturns)} (Match)`;
+  }
+
+  // Auto-calculate on changes
+  await calculate(true);
+}
+
+async function removePlayerFromGame(buyinId) {
+  if (!confirm('Remove player from this game? Data for this session will be lost.')) return;
+  const result = await fetchAPI(`/api/game/${currentGameId}/remove_player/${buyinId}`, { method: 'DELETE' });
+  if (result) {
+    await loadExistingGame();
   }
 }
 
 async function quickAddBuyin(buyinId, amount) {
   const gameData = await fetchAPI(`/api/game/${currentGameId}`);
   if (!gameData) return;
-
   const player = gameData.players.find(p => p.buyin_id === buyinId);
   const currentBuyins = player ? player.buyins : 0;
   const newValue = currentBuyins + amount;
-
   if (newValue < 0) return;
 
   const result = await fetchAPI('/api/buyins', {
@@ -355,28 +335,20 @@ async function quickAddBuyin(buyinId, amount) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id: buyinId, field: 'buyins', value: newValue })
   });
-
   if (result) {
     await loadExistingGame();
   }
 }
 
 // ============ Calculate & Settlements ============
-async function calculate() {
-  if (!currentGameId) {
-    showError('No active game');
-    return;
-  }
-
+async function calculate(silent = false) {
+  if (!currentGameId) return;
   const data = await fetchAPI(`/api/calculate/${currentGameId}`);
   if (!data) return;
 
   let html = '<div class="settlement-card">';
-
   data.results.forEach(r => {
-    const cls = r.net_cash > 0 ? 'net-win'
-      : r.net_cash < 0 ? 'net-lose'
-        : 'net-even';
+    const cls = r.net_cash > 0 ? 'net-win' : r.net_cash < 0 ? 'net-lose' : 'net-even';
     const sign = r.net_cash > 0 ? '+' : '';
     html += `
       <div class="result-row">
@@ -399,7 +371,6 @@ async function calculate() {
     html += '<div class="settlement-item">No settlements needed.</div>';
   }
   html += '</div></div>';
-
   document.getElementById('settlements').innerHTML = html;
 }
 
@@ -409,8 +380,7 @@ async function loadHistory() {
   if (!games) return;
 
   if (!games.length) {
-    document.getElementById('history-list').innerHTML =
-      '<div class="section-header no-players-message">No games yet</div>';
+    document.getElementById('history-list').innerHTML = '<div class="section-header no-players-message">No games yet</div>';
     return;
   }
 
@@ -435,27 +405,17 @@ async function loadHistory() {
       const sign = r.net_cash > 0 ? '+' : '';
       html += `
         <div class="result-row">
-          <div class="result-left">
-            ${sanitizeHTML(r.name)}: ${r.buyins} buy-ins, ${r.chips_returned || 0} back
+          <div class="result-left" style="font-size:11px">
+            ${sanitizeHTML(r.name)}: ${r.buyins} in, ${r.chips_returned || 0} back
           </div>
-          <div class="result-right ${cls}">
+          <div class="result-right ${cls}" style="font-size:11px">
             ${sign}$${r.net_cash}
           </div>
         </div>
       `;
     });
-
-    if (data.settlements && data.settlements.length) {
-      html += '<div class="settlement-list">';
-      data.settlements.slice(0, 3).forEach(s => {
-        html += `<div class="settlement-item">${sanitizeHTML(s)}</div>`;
-      });
-      html += '</div>';
-    }
-
     html += '</div>';
   }
-
   document.getElementById('history-list').innerHTML = html;
 }
 
@@ -465,8 +425,7 @@ async function resumeGame(id) {
 }
 
 async function deleteGame(id) {
-  if (!confirm('Delete this game?')) return;
-
+  if (!confirm('Delete this game history?')) return;
   const result = await fetchAPI(`/api/game/${id}`, { method: 'DELETE' });
   if (result) {
     if (currentGameId === id) currentGameId = null;
@@ -476,12 +435,12 @@ async function deleteGame(id) {
 
 // ============ Edit Panel Functions ============
 function editPlayer(id) {
-  document.querySelectorAll('.edit-panel').forEach(p => {
-    p.style.display = 'none';
-  });
   const panel = document.getElementById(`edit-${id}`);
-  if (panel) {
-    panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
+  const isHidden = panel.style.display === 'none';
+  
+  document.querySelectorAll('.edit-panel').forEach(p => p.style.display = 'none');
+  if (panel && isHidden) {
+    panel.style.display = 'block';
   }
 }
 
@@ -499,23 +458,6 @@ async function saveChipsReturned(buyinId) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id: buyinId, field: 'chips_returned', value: chips })
   });
-
-  if (result) {
-    await loadExistingGame();
-  }
-}
-
-async function savePots(buyinId) {
-  const potsInput = document.getElementById(`pots-${buyinId}`);
-  const pots = parseInt(potsInput.value || '0', 10);
-  const chips = Math.max(0, pots * 200);
-
-  const result = await fetchAPI('/api/buyins', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: buyinId, field: 'chips_returned', value: chips })
-  });
-
   if (result) {
     await loadExistingGame();
   }
@@ -535,7 +477,6 @@ async function saveCash(buyinId) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id: buyinId, field: 'cash_return', value: cash })
   });
-
   if (result) {
     await loadExistingGame();
   }
