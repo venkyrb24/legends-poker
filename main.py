@@ -208,6 +208,7 @@ def get_or_delete_game(game_id: int):
         """
         SELECT
             b.id   AS buyin_id,
+            b.player_id,
             b.buyins,
             b.chips_returned,
             b.cash_return,
