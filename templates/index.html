@@ -415,33 +415,23 @@
 
         let html = '<div class="settlement-card">';
 
-        // Per-player summary: show only non-zero nets
-        data.results
-          .filter(r => r.net_cash !== 0)
-          .forEach(r => {
-            const cls = r.net_cash > 0 ? 'net-win' : 'net-lose';
-            const sign = r.net_cash > 0 ? '+' : '';
-            html += `
-        <div class="result-row">
-          <div class="result-left">
-            ${r.name}: ${r.buyins} buy-ins, ${r.chips_returned || 0} back
-          </div>
-          <div class="result-right ${cls}">
-            ${sign}$${r.net_cash}
-          </div>
-        </div>
-      `;
-          });
-
-        // If everyone is exactly even
-        if (!data.results.some(r => r.net_cash !== 0)) {
+        // Per-player summary: show ALL players (including $0)
+        data.results.forEach(r => {
+          const cls = r.net_cash > 0 ? 'net-win'
+            : r.net_cash < 0 ? 'net-lose'
+              : 'net-even';
+          const sign = r.net_cash > 0 ? '+' : '';
           html += `
       <div class="result-row">
-        <div class="result-left">All players are even.</div>
-        <div class="result-right net-even">$0</div>
+        <div class="result-left">
+          ${r.name}: ${r.buyins} buy-ins, ${r.chips_returned || 0} back
+        </div>
+        <div class="result-right ${cls}">
+          ${sign}$${r.net_cash}
+        </div>
       </div>
     `;
-        }
+        });
 
         // Who owes whom
         html += '<div class="settlement-list">';
