@@ -143,29 +143,39 @@
 
   <script>
     async function loadPlayers() {
-      const res = await fetch("/api/players");
-      const players = await res.json();
       const list = document.getElementById("players-list");
       list.innerHTML = "";
+      try {
+        const res = await fetch("/api/players");
+        if (!res.ok) throw new Error("Failed to load players");
+        const players = await res.json();
 
-      players.forEach((p) => {
-        const row = document.createElement("div");
-        row.className = "player-row";
+        if (!players.length) {
+          list.innerHTML = '<div class="section-header" style="margin-top:4px;">No players yet.</div>';
+          return;
+        }
 
-        const name = document.createElement("div");
-        name.className = "player-name";
-        name.textContent = p.name;
+        players.forEach((p) => {
+          const row = document.createElement("div");
+          row.className = "player-row";
 
-        const del = document.createElement("div");
-        del.className = "player-delete";
-        del.textContent = "Delete";
-        del.onclick = () => deletePlayer(p.id);
+          const name = document.createElement("div");
+          name.className = "player-name";
+          name.textContent = p.name;
 
-        row.appendChild(name);
-        row.appendChild(del);
+          const del = document.createElement("div");
+          del.className = "player-delete";
+          del.textContent = "Delete";
+          del.onclick = () => deletePlayer(p.id);
 
-        list.appendChild(row);
-      });
+          row.appendChild(name);
+          row.appendChild(del);
+
+          list.appendChild(row);
+        });
+      } catch (e) {
+        list.innerHTML = '<div class="error">Error loading players.</div>';
+      }
     }
 
     async function addPlayer() {
@@ -177,29 +187,45 @@
         return;
       }
       err.textContent = "";
-      const res = await fetch("/api/players", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        err.textContent = data.error || "Error adding player.";
-      } else {
-        input.value = "";
-        loadPlayers();
+      try {
+        const res = await fetch("/api/players", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error) {
+          err.textContent = data.error || "Error adding player.";
+        } else {
+          input.value = "";
+          loadPlayers();
+        }
+      } catch (e) {
+        err.textContent = "Network error adding player.";
       }
     }
 
     async function deletePlayer(id) {
       if (!confirm("Delete this player and their history?")) return;
-      await fetch(`/api/players/${id}`, { method: "DELETE" });
-      loadPlayers();
+      try {
+        await fetch(`/api/players/${id}`, { method: "DELETE" });
+        loadPlayers();
+      } catch (e) {
+        // optional: surface an error
+      }
     }
 
     function goBack() {
       window.location.href = "/";
     }
+
+    document
+      .getElementById("player-name-input")
+      .addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          addPlayer();
+        }
+      });
 
     loadPlayers();
   </script>
